@@ -14,10 +14,6 @@ type Movie = {
   genres: string[];
   poster: string | null;
   plot: string;
-  runtime?: string;
-  director?: string;
-  actors?: string;
-  imdbRating?: number;
   rating?: number;
   status: MovieStatus;
 };
@@ -29,74 +25,70 @@ function MovieCard({
   onDelete,
   onToggleWatched,
   onRate,
-}: {
-  movie: Movie;
-  onDelete: (id: number) => void;
-  onToggleWatched: (id: number) => void;
-  onRate: (id: number, rating: number) => void;
-}) {
+}: any) {
   return (
     <div className="movie-card">
-      <div className="movie-poster-wrap">
-        {movie.poster ? (
-          <img
-            className="movie-poster"
-            src={movie.poster}
-            alt={movie.title}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-        ) : (
-          <div className="fallback">Kein Poster</div>
+      <div>
+        {movie.poster && (
+          <img className="movie-poster" src={movie.poster} alt={movie.title} />
         )}
       </div>
 
       <div className="movie-content">
         <div className="movie-top">
-          <div>
-            <h3>{movie.title}</h3>
+          <div className="movie-title-group">
+            <div className="movie-heading-row">
+              <h3>{movie.title}</h3>
+              <span
+                className={
+                  movie.status === "watched"
+                    ? "badge badge-green"
+                    : "badge"
+                }
+              >
+                {movie.status === "watched"
+                  ? "Gesehen"
+                  : "Watchlist"}
+              </span>
+            </div>
             <p className="muted">{movie.year}</p>
           </div>
-
-          <span className={movie.status === "watched" ? "badge badge-green" : "badge"}>
-            {movie.status === "watched" ? "Gesehen" : "Watchlist"}
-          </span>
         </div>
 
         <div className="genres">
-          {movie.genres.map((genre) => (
-            <span key={genre} className="genre-pill">
-              {genre}
+          {movie.genres.map((g: string) => (
+            <span key={g} className="genre-pill">
+              {g}
             </span>
           ))}
         </div>
 
-        <p className="plot">{movie.plot}</p>
-
-        <div className="movie-meta">
-          {movie.runtime ? <span className="meta-pill">⏱ {movie.runtime}</span> : null}
-          {movie.director ? <span className="meta-pill">🎬 {movie.director}</span> : null}
-          {movie.imdbRating ? <span className="meta-pill">⭐ IMDb {movie.imdbRating}</span> : null}
-        </div>
-
-        {movie.actors ? <p className="muted">Cast: {movie.actors}</p> : null}
+        <p>{movie.plot}</p>
 
         <div className="movie-actions">
-          <button className="secondary-btn" onClick={() => onToggleWatched(movie.id)}>
-            {movie.status === "watched" ? "Zur Watchlist" : "Als gesehen"}
+          <button
+            className="secondary-btn"
+            onClick={() => onToggleWatched(movie.id)}
+          >
+            Toggle
           </button>
-
-          <button className="danger-btn" onClick={() => onDelete(movie.id)}>
+          <button
+            className="danger-btn"
+            onClick={() => onDelete(movie.id)}
+          >
             Löschen
           </button>
         </div>
 
         <div className="rating-row">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+          {[1,2,3,4,5,6,7,8,9,10].map((n) => (
             <button
               key={n}
-              className={movie.rating && n <= movie.rating ? "rate-btn active" : "rate-btn"}
+              className={
+                movie.rating && n <= movie.rating
+                  ? "rate-btn active"
+                  : "rate-btn"
+              }
               onClick={() => onRate(movie.id, n)}
             >
               {n}
@@ -115,11 +107,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const savedWatchlist = localStorage.getItem("watchlist");
-
-    if (savedWatchlist) {
-      setWatchlist(JSON.parse(savedWatchlist));
-    }
+    const saved = localStorage.getItem("watchlist");
+    if (saved) setWatchlist(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
@@ -127,112 +116,59 @@ export default function Home() {
   }, [watchlist]);
 
   useEffect(() => {
-    const trimmed = query.trim();
-
-    if (!trimmed) {
-      setSearchResults([]);
-      setLoading(false);
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      searchMovies(trimmed);
+    const t = setTimeout(() => {
+      if (query.trim()) searchMovies(query);
+      else setSearchResults([]);
     }, 400);
-
-    return () => clearTimeout(timeout);
+    return () => clearTimeout(t);
   }, [query]);
 
-  const watchedCount = watchlist.filter((m) => m.status === "watched").length;
-  const progress = watchlist.length ? Math.round((watchedCount / watchlist.length) * 100) : 0;
+  const watchedCount = watchlist.filter(m => m.status === "watched").length;
+  const progress = watchlist.length
+    ? Math.round((watchedCount / watchlist.length) * 100)
+    : 0;
 
   async function searchMovies(search: string) {
-    const trimmed = search.trim();
+    setLoading(true);
 
-    if (!trimmed) {
+    const res = await fetch(
+      `https://www.omdbapi.com/?apikey=${API_KEY}&s=${search}`
+    );
+    const data = await res.json();
+
+    if (!data.Search) {
       setSearchResults([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    const movies = data.Search.map((m: any, i: number) => ({
+      id: Date.now() + i,
+      imdbId: m.imdbID,
+      title: m.Title,
+      year: parseInt(m.Year),
+      genres: ["Film"],
+      poster: m.Poster !== "N/A" ? m.Poster : null,
+      plot: "Keine Beschreibung",
+      status: "watchlist" as MovieStatus,
+    }));
 
-    try {
-      const res = await fetch(
-        `https://www.omdbapi.com/?apikey=${API_KEY}&s=${encodeURIComponent(trimmed)}`
-      );
-      const data = await res.json();
-
-      if (!data.Search) {
-        setSearchResults([]);
-        return;
-      }
-
-      const movies: Movie[] = await Promise.all(
-        data.Search.slice(0, 8).map(async (movie: any, index: number) => {
-          const detailRes = await fetch(
-            `https://www.omdbapi.com/?apikey=${API_KEY}&i=${movie.imdbID}&plot=full`
-          );
-          const detailData = await detailRes.json();
-
-          return {
-            id: Date.now() + index,
-            imdbId: detailData.imdbID,
-            title: detailData.Title,
-            year: parseInt(detailData.Year) || 0,
-            genres:
-              detailData.Genre && detailData.Genre !== "N/A"
-                ? detailData.Genre.split(",").map((genre: string) => genre.trim())
-                : ["Unbekannt"],
-            poster: detailData.Poster !== "N/A" ? detailData.Poster : null,
-            plot:
-              detailData.Plot && detailData.Plot !== "N/A"
-                ? detailData.Plot
-                : "Keine Beschreibung verfügbar.",
-            runtime:
-              detailData.Runtime && detailData.Runtime !== "N/A"
-                ? detailData.Runtime
-                : undefined,
-            director:
-              detailData.Director && detailData.Director !== "N/A"
-                ? detailData.Director
-                : undefined,
-            actors:
-              detailData.Actors && detailData.Actors !== "N/A"
-                ? detailData.Actors
-                : undefined,
-            imdbRating:
-              detailData.imdbRating && detailData.imdbRating !== "N/A"
-                ? Number(detailData.imdbRating)
-                : undefined,
-            status: "watchlist",
-          };
-        })
-      );
-
-      setSearchResults(movies);
-    } catch (error) {
-      console.error("Fehler bei der Suche:", error);
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-    }
+    setSearchResults(movies);
+    setLoading(false);
   }
 
   function addMovie(movie: Movie) {
-    if (watchlist.some((m) => m.imdbId === movie.imdbId)) {
-      return;
-    }
-
-    setWatchlist((prev) => [{ ...movie, id: Date.now() }, ...prev]);
+    if (watchlist.some(m => m.imdbId === movie.imdbId)) return;
+    setWatchlist(prev => [{ ...movie, id: Date.now() }, ...prev]);
   }
 
   function deleteMovie(id: number) {
-    setWatchlist((prev) => prev.filter((m) => m.id !== id));
+    setWatchlist(prev => prev.filter(m => m.id !== id));
   }
 
   function toggleWatched(id: number) {
-    setWatchlist((prev) =>
-      prev.map((m) =>
+    setWatchlist(prev =>
+      prev.map(m =>
         m.id === id
           ? { ...m, status: m.status === "watched" ? "watchlist" : "watched" }
           : m
@@ -241,35 +177,26 @@ export default function Home() {
   }
 
   function rateMovie(id: number, rating: number) {
-    setWatchlist((prev) => prev.map((m) => (m.id === id ? { ...m, rating } : m)));
+    setWatchlist(prev =>
+      prev.map(m => (m.id === id ? { ...m, rating } : m))
+    );
   }
 
   return (
     <main className="page">
       <div className="container">
+
         <section className="hero">
-          <div className="hero-left">
-            <div className="hero-badge">Persönliche Filmverwaltung</div>
+          <div>
             <h1>CineTrack</h1>
-            <p className="hero-text">
-              Verwalte deine Watchlist, entdecke neue Filme und bewerte, was du bereits gesehen
-              hast.
-            </p>
 
             <div className="hero-search">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Suche nach einem Film, z. B. Avatar"
+                placeholder="Film suchen..."
               />
-
-              <button
-                className="primary-btn"
-                onClick={() => searchMovies(query)}
-                disabled={loading}
-              >
-                {loading ? "Suche..." : "Suchen"}
-              </button>
+              <button className="primary-btn">Suchen</button>
             </div>
           </div>
 
@@ -285,7 +212,7 @@ export default function Home() {
             </div>
 
             <div className="progress-card">
-              <div className="section-head">
+              <div className="progress-head">
                 <span>Fortschritt</span>
                 <span>{progress}%</span>
               </div>
@@ -300,74 +227,43 @@ export default function Home() {
         </section>
 
         <section className="section">
-          <div className="section-head">
-            <h2>Suchergebnisse</h2>
-            {loading ? <span className="muted">Suche läuft...</span> : null}
-          </div>
+          <h2>Suchergebnisse</h2>
 
-          {searchResults.length === 0 ? (
-            <p className="muted">Suche nach einem Film, um Ergebnisse anzuzeigen.</p>
-          ) : (
-            <div className="search-grid">
-              {searchResults.map((movie) => (
-                <div key={movie.id} className="search-card">
-                  {movie.poster ? (
-                    <img
-                      className="search-poster"
-                      src={movie.poster}
-                      alt={movie.title}
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  ) : null}
-
-                  <div className="search-content">
-                    <h3>{movie.title}</h3>
-                    <p className="muted">{movie.year}</p>
-
-                    <div className="genres">
-                      {movie.genres.slice(0, 3).map((genre) => (
-                        <span key={genre} className="genre-pill">
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-
-                    <p className="plot">{movie.plot}</p>
-
-                    <button className="primary-btn small" onClick={() => addMovie(movie)}>
-                      +
-                    </button>
-                  </div>
+          <div className="search-grid">
+            {searchResults.map(movie => (
+              <div key={movie.id} className="search-card">
+                {movie.poster && (
+                  <img className="search-poster" src={movie.poster} alt={movie.title} />
+                )}
+                <div className="search-content">
+                  <h3>{movie.title}</h3>
+                  <p className="muted">{movie.year}</p>
+                  <button
+                    className="primary-btn small"
+                    onClick={() => addMovie(movie)}
+                  >
+                    +
+                  </button>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="section">
-          <div className="section-head">
-            <h2>Watchlist</h2>
-            <span className="muted">{watchlist.length} Filme</span>
-          </div>
+          <h2>Watchlist</h2>
 
-          {watchlist.length === 0 ? (
-            <p className="muted">Deine Watchlist ist noch leer.</p>
-          ) : (
-            <div className="watchlist-grid">
-              {watchlist.map((movie) => (
-                <MovieCard
-                  key={movie.id}
-                  movie={movie}
-                  onDelete={deleteMovie}
-                  onToggleWatched={toggleWatched}
-                  onRate={rateMovie}
-                />
-              ))}
-            </div>
-          )}
+          {watchlist.map(movie => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              onDelete={deleteMovie}
+              onToggleWatched={toggleWatched}
+              onRate={rateMovie}
+            />
+          ))}
         </section>
+
       </div>
     </main>
   );
