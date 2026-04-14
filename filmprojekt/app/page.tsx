@@ -140,6 +140,7 @@ export default function Home() {
   async function searchMovies(search: string) {
     if (!search.trim()) {
       setSearchResults([]);
+      setLoading(false);
       return;
     }
 
@@ -153,7 +154,6 @@ export default function Home() {
 
       if (!data.Search) {
         setSearchResults([]);
-        setLoading(false);
         return;
       }
 
@@ -214,7 +214,11 @@ export default function Home() {
             <div className="hero-search">
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setQuery(value);
+                  searchMovies(value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     searchMovies(query);
