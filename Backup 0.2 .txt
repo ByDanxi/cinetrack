@@ -8,16 +8,11 @@ type MovieStatus = "watchlist" | "watched";
 
 type Movie = {
   id: number;
-  imdbId: string;
   title: string;
   year: number;
   genres: string[];
   poster: string | null;
   plot: string;
-  runtime?: string;
-  director?: string;
-  actors?: string;
-  imdbRating?: number;
   rating?: number;
   status: MovieStatus;
 };
@@ -73,18 +68,6 @@ function MovieCard({
         </div>
 
         <p className="plot">{movie.plot}</p>
-
-        <div className="movie-meta">
-          {movie.runtime ? <span className="meta-pill">⏱ {movie.runtime}</span> : null}
-          {movie.director ? <span className="meta-pill">🎬 {movie.director}</span> : null}
-          {movie.imdbRating ? <span className="meta-pill">⭐ IMDb {movie.imdbRating}</span> : null}
-        </div>
-
-        {movie.actors ? (
-          <p className="muted">
-            <strong>Cast:</strong> {movie.actors}
-          </p>
-        ) : null}
 
         <div className="movie-actions">
           <button className="secondary-btn" onClick={() => onToggleWatched(movie.id)}>
@@ -149,57 +132,25 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const searchRes = await fetch(
+      const res = await fetch(
         `https://www.omdbapi.com/?apikey=${API_KEY}&s=${encodeURIComponent(trimmed)}`
       );
-      const searchData = await searchRes.json();
+      const data = await res.json();
 
-      if (!searchData.Search) {
+      if (!data.Search) {
         setSearchResults([]);
         return;
       }
 
-      const movies: Movie[] = await Promise.all(
-        searchData.Search.slice(0, 8).map(async (movie: any, index: number) => {
-          const detailRes = await fetch(
-            `https://www.omdbapi.com/?apikey=${API_KEY}&i=${movie.imdbID}&plot=full`
-          );
-          const detailData = await detailRes.json();
-
-          return {
-            id: Date.now() + index,
-            imdbId: detailData.imdbID,
-            title: detailData.Title,
-            year: parseInt(detailData.Year) || 0,
-            genres:
-              detailData.Genre && detailData.Genre !== "N/A"
-                ? detailData.Genre.split(",").map((genre: string) => genre.trim())
-                : ["Unbekannt"],
-            poster: detailData.Poster !== "N/A" ? detailData.Poster : null,
-            plot:
-              detailData.Plot && detailData.Plot !== "N/A"
-                ? detailData.Plot
-                : "Keine Beschreibung verfügbar.",
-            runtime:
-              detailData.Runtime && detailData.Runtime !== "N/A"
-                ? detailData.Runtime
-                : undefined,
-            director:
-              detailData.Director && detailData.Director !== "N/A"
-                ? detailData.Director
-                : undefined,
-            actors:
-              detailData.Actors && detailData.Actors !== "N/A"
-                ? detailData.Actors
-                : undefined,
-            imdbRating:
-              detailData.imdbRating && detailData.imdbRating !== "N/A"
-                ? Number(detailData.imdbRating)
-                : undefined,
-            status: "watchlist",
-          };
-        })
-      );
+      const movies: Movie[] = data.Search.map((movie: any, index: number) => ({
+        id: Date.now() + index,
+        title: movie.Title,
+        year: parseInt(movie.Year) || 0,
+        genres: ["Film"],
+        poster: movie.Poster !== "N/A" ? movie.Poster : null,
+        plot: "Noch keine Detailbeschreibung geladen.",
+        status: "watchlist",
+      }));
 
       setSearchResults(movies);
     } catch (error) {
@@ -211,7 +162,7 @@ export default function Home() {
   }
 
   function addMovie(movie: Movie) {
-    if (watchlist.some((m) => m.imdbId === movie.imdbId)) {
+    if (watchlist.some((m) => m.title === movie.title && m.year === movie.year)) {
       return;
     }
 
@@ -326,25 +277,8 @@ export default function Home() {
                     <h3>{movie.title}</h3>
                     <p className="muted">{movie.year}</p>
 
-                    <div className="genres">
-                      {movie.genres.slice(0, 3).map((genre) => (
-                        <span key={genre} className="genre-pill">
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-
-                    <p className="plot">{movie.plot}</p>
-
-                    <div className="movie-meta">
-                      {movie.runtime ? <span className="meta-pill">⏱ {movie.runtime}</span> : null}
-                      {movie.imdbRating ? (
-                        <span className="meta-pill">⭐ IMDb {movie.imdbRating}</span>
-                      ) : null}
-                    </div>
-
-                    <button className="primary-btn" onClick={() => addMovie(movie)}>
-                      Zur Watchlist
+                    <button className="primary-btn small" onClick={() => addMovie(movie)}>
+                      +
                     </button>
                   </div>
                 </div>
