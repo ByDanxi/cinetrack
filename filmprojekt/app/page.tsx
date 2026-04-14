@@ -70,7 +70,7 @@ function MovieCard({
             className="secondary-btn"
             onClick={() => onToggleWatched(movie.id)}
           >
-            Toggle
+            Gesehen
           </button>
           <button
             className="danger-btn"
