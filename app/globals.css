@@ -1,0 +1,107 @@
+/* RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* BODY */
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #0f172a, #020617);
+  color: #e5e7eb;
+  min-height: 100vh;
+}
+
+/* MAIN CONTAINER */
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* HEADINGS */
+h1 {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+h2 {
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+/* INPUT */
+input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: #020617;
+  color: white;
+  margin-bottom: 16px;
+}
+
+/* BUTTON */
+button {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: #ef4444;
+  color: white;
+  transition: 0.2s;
+}
+
+button:hover {
+  background: #dc2626;
+}
+
+/* SEARCH RESULTS */
+.search-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+/* MOVIE CARD */
+.movie-card {
+  background: rgba(255,255,255,0.05);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* BUTTON GROUP */
+.button-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* RATING BUTTONS */
+.rating button {
+  background: #111827;
+  border: 1px solid #374151;
+}
+
+.rating button:hover {
+  background: #facc15;
+  color: black;
+}
+
+/* MOBILE OPTIMIZATION */
+@media (max-width: 600px) {
+  h1 {
+    font-size: 24px;
+  }
+
+  button {
+    width: 100%;
+  }
+}
