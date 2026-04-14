@@ -55,7 +55,7 @@ function MovieCard({
         </div>
 
         <div className="genres">
-          {movie.genres.map((g: string) => (
+          {movie.genres.map((g) => (
             <span key={g} className="genre-pill">
               {g}
             </span>
@@ -81,7 +81,7 @@ function MovieCard({
         </div>
 
         <div className="rating-row">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+          {[1,2,3,4,5,6,7,8,9,10].map((n) => (
             <button
               key={n}
               className={
@@ -106,6 +106,9 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // 👉 NEU: Expand State
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
   useEffect(() => {
     const saved = localStorage.getItem("watchlist");
     if (saved) setWatchlist(JSON.parse(saved));
@@ -115,6 +118,7 @@ export default function Home() {
     localStorage.setItem("watchlist", JSON.stringify(watchlist));
   }, [watchlist]);
 
+  // 👉 Live Search mit 400ms
   useEffect(() => {
     const t = setTimeout(() => {
       if (query.trim()) {
@@ -178,7 +182,7 @@ export default function Home() {
 
       setSearchResults(movies);
     } catch (error) {
-      console.error("Fehler bei der Filmsuche:", error);
+      console.error(error);
       setSearchResults([]);
     } finally {
       setLoading(false);
@@ -213,6 +217,7 @@ export default function Home() {
   return (
     <main className="page">
       <div className="container">
+
         <section className="hero">
           <div>
             <h1>CineTrack</h1>
@@ -271,6 +276,7 @@ export default function Home() {
                       alt={movie.title}
                     />
                   )}
+
                   <div className="search-content">
                     <h3>{movie.title}</h3>
                     <p className="muted">{movie.year}</p>
@@ -283,7 +289,30 @@ export default function Home() {
                       ))}
                     </div>
 
-                    <p className="muted">{movie.plot}</p>
+                    <p
+                      className={
+                        expandedId === movie.id
+                          ? "plot expanded"
+                          : "plot"
+                      }
+                    >
+                      {movie.plot}
+                    </p>
+
+                    {movie.plot.length > 120 && (
+                      <button
+                        className="read-more"
+                        onClick={() =>
+                          setExpandedId(
+                            expandedId === movie.id ? null : movie.id
+                          )
+                        }
+                      >
+                        {expandedId === movie.id
+                          ? "Weniger anzeigen"
+                          : "Mehr lesen"}
+                      </button>
+                    )}
 
                     <button
                       className="primary-btn small"
@@ -311,6 +340,7 @@ export default function Home() {
             />
           ))}
         </section>
+
       </div>
     </main>
   );

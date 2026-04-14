@@ -412,3 +412,47 @@ html, body {
 .progress-fill[data-progress="98"] { width: 98%; }
 .progress-fill[data-progress="99"] { width: 99%; }
 .progress-fill[data-progress="100"] { width: 100%; }
+
+.search-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.search-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* TEXT LIMIT */
+.plot {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* EXPANDED */
+.plot.expanded {
+  -webkit-line-clamp: unset;
+}
+
+/* BUTTON */
+.read-more {
+  margin-top: 6px;
+  background: none;
+  border: none;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
+
+/* Button unten fixieren */
+.search-content .primary-btn.small {
+  margin-top: auto;
+}
