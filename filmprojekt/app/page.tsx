@@ -92,20 +92,16 @@ function MovieCard({
           </button>
         </div>
 
-        <div className="rating-block">
-          <div className="rating-row">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <button
-                key={n}
-                className={movie.rating && n <= movie.rating ? "rate-btn active" : "rate-btn"}
-                onClick={() => onRate(movie.id, n)}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-
-          {movie.rating ? <span className="rating-text">{movie.rating}/10</span> : null}
+        <div className="rating-row">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+            <button
+              key={n}
+              className={movie.rating && n <= movie.rating ? "rate-btn active" : "rate-btn"}
+              onClick={() => onRate(movie.id, n)}
+            >
+              {n}
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -120,6 +116,7 @@ export default function Home() {
 
   useEffect(() => {
     const savedWatchlist = localStorage.getItem("watchlist");
+
     if (savedWatchlist) {
       setWatchlist(JSON.parse(savedWatchlist));
     }
@@ -129,6 +126,22 @@ export default function Home() {
     localStorage.setItem("watchlist", JSON.stringify(watchlist));
   }, [watchlist]);
 
+  useEffect(() => {
+    const trimmed = query.trim();
+
+    if (!trimmed) {
+      setSearchResults([]);
+      setLoading(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      searchMovies(trimmed);
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [query]);
+
   const watchedCount = watchlist.filter((m) => m.status === "watched").length;
   const progress = watchlist.length ? Math.round((watchedCount / watchlist.length) * 100) : 0;
 
@@ -137,6 +150,7 @@ export default function Home() {
 
     if (!trimmed) {
       setSearchResults([]);
+      setLoading(false);
       return;
     }
 
@@ -235,7 +249,7 @@ export default function Home() {
       <div className="container">
         <section className="hero">
           <div className="hero-left">
-            <div className="hero-badge">🎬 Persönliche Filmverwaltung</div>
+            <div className="hero-badge">Persönliche Filmverwaltung</div>
             <h1>CineTrack</h1>
             <p className="hero-text">
               Verwalte deine Watchlist, entdecke neue Filme und bewerte, was du bereits gesehen
@@ -246,11 +260,6 @@ export default function Home() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) {
-                    searchMovies(query);
-                  }
-                }}
                 placeholder="Suche nach einem Film, z. B. Avatar"
               />
 
@@ -276,7 +285,7 @@ export default function Home() {
             </div>
 
             <div className="progress-card">
-              <div className="progress-head">
+              <div className="section-head">
                 <span>Fortschritt</span>
                 <span>{progress}%</span>
               </div>
@@ -297,27 +306,21 @@ export default function Home() {
           </div>
 
           {searchResults.length === 0 ? (
-            <div className="empty-state">
-              <p>Suche nach einem Film, um Ergebnisse anzuzeigen.</p>
-            </div>
+            <p className="muted">Suche nach einem Film, um Ergebnisse anzuzeigen.</p>
           ) : (
             <div className="search-grid">
               {searchResults.map((movie) => (
                 <div key={movie.id} className="search-card">
-                  <div className="search-poster-wrap">
-                    {movie.poster ? (
-                      <img
-                        className="search-poster"
-                        src={movie.poster}
-                        alt={movie.title}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <div className="fallback">Kein Poster</div>
-                    )}
-                  </div>
+                  {movie.poster ? (
+                    <img
+                      className="search-poster"
+                      src={movie.poster}
+                      alt={movie.title}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : null}
 
                   <div className="search-content">
                     <h3>{movie.title}</h3>
@@ -333,15 +336,8 @@ export default function Home() {
 
                     <p className="plot">{movie.plot}</p>
 
-                    <div className="movie-meta">
-                      {movie.runtime ? <span className="meta-pill">⏱ {movie.runtime}</span> : null}
-                      {movie.imdbRating ? (
-                        <span className="meta-pill">⭐ IMDb {movie.imdbRating}</span>
-                      ) : null}
-                    </div>
-
                     <button className="primary-btn small" onClick={() => addMovie(movie)}>
-                      Zur Watchlist
+                      +
                     </button>
                   </div>
                 </div>
@@ -357,9 +353,7 @@ export default function Home() {
           </div>
 
           {watchlist.length === 0 ? (
-            <div className="empty-state">
-              <p>Deine Watchlist ist noch leer.</p>
-            </div>
+            <p className="muted">Deine Watchlist ist noch leer.</p>
           ) : (
             <div className="watchlist-grid">
               {watchlist.map((movie) => (
