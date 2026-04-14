@@ -25,7 +25,12 @@ function MovieCard({
   onDelete,
   onToggleWatched,
   onRate,
-}: any) {
+}: {
+  movie: Movie;
+  onDelete: (id: number) => void;
+  onToggleWatched: (id: number) => void;
+  onRate: (id: number, rating: number) => void;
+}) {
   return (
     <div className="movie-card">
       <div>
@@ -40,15 +45,9 @@ function MovieCard({
             <div className="movie-heading-row">
               <h3>{movie.title}</h3>
               <span
-                className={
-                  movie.status === "watched"
-                    ? "badge badge-green"
-                    : "badge"
-                }
+                className={movie.status === "watched" ? "badge badge-green" : "badge"}
               >
-                {movie.status === "watched"
-                  ? "Gesehen"
-                  : "Watchlist"}
+                {movie.status === "watched" ? "Gesehen" : "Watchlist"}
               </span>
             </div>
             <p className="muted">{movie.year}</p>
@@ -70,8 +69,9 @@ function MovieCard({
             className="secondary-btn"
             onClick={() => onToggleWatched(movie.id)}
           >
-            Gesehen
+            {movie.status === "watched" ? "Zur Watchlist" : "Gesehen"}
           </button>
+
           <button
             className="danger-btn"
             onClick={() => onDelete(movie.id)}
@@ -81,7 +81,7 @@ function MovieCard({
         </div>
 
         <div className="rating-row">
-          {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
             <button
               key={n}
               className={
@@ -117,13 +117,17 @@ export default function Home() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      if (query.trim()) searchMovies(query);
-      else setSearchResults([]);
+      if (query.trim()) {
+        searchMovies(query);
+      } else {
+        setSearchResults([]);
+      }
     }, 400);
+
     return () => clearTimeout(t);
   }, [query]);
 
-  const watchedCount = watchlist.filter(m => m.status === "watched").length;
+  const watchedCount = watchlist.filter((m) => m.status === "watched").length;
   const progress = watchlist.length
     ? Math.round((watchedCount / watchlist.length) * 100)
     : 0;
@@ -131,44 +135,68 @@ export default function Home() {
   async function searchMovies(search: string) {
     setLoading(true);
 
-    const res = await fetch(
-      `https://www.omdbapi.com/?apikey=${API_KEY}&s=${search}`
-    );
-    const data = await res.json();
+    try {
+      const res = await fetch(
+        `https://www.omdbapi.com/?apikey=${API_KEY}&s=${encodeURIComponent(search)}`
+      );
+      const data = await res.json();
 
-    if (!data.Search) {
+      if (!data.Search) {
+        setSearchResults([]);
+        return;
+      }
+
+      const movies: Movie[] = await Promise.all(
+        data.Search.slice(0, 8).map(async (m: any, i: number) => {
+          const detailRes = await fetch(
+            `https://www.omdbapi.com/?apikey=${API_KEY}&i=${m.imdbID}&plot=full`
+          );
+          const detail = await detailRes.json();
+
+          return {
+            id: Date.now() + i,
+            imdbId: m.imdbID,
+            title: detail.Title,
+            year: parseInt(detail.Year) || 0,
+            genres:
+              detail.Genre && detail.Genre !== "N/A"
+                ? detail.Genre.split(", ").slice(0, 3)
+                : ["Unbekannt"],
+            poster: detail.Poster !== "N/A" ? detail.Poster : null,
+            plot:
+              detail.Plot && detail.Plot !== "N/A"
+                ? detail.Plot
+                : "Keine Beschreibung verfügbar",
+            rating:
+              detail.imdbRating && detail.imdbRating !== "N/A"
+                ? Math.round(Number(detail.imdbRating))
+                : undefined,
+            status: "watchlist",
+          };
+        })
+      );
+
+      setSearchResults(movies);
+    } catch (error) {
+      console.error("Fehler bei der Filmsuche:", error);
       setSearchResults([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const movies = data.Search.map((m: any, i: number) => ({
-      id: Date.now() + i,
-      imdbId: m.imdbID,
-      title: m.Title,
-      year: parseInt(m.Year),
-      genres: ["Film"],
-      poster: m.Poster !== "N/A" ? m.Poster : null,
-      plot: "Keine Beschreibung",
-      status: "watchlist" as MovieStatus,
-    }));
-
-    setSearchResults(movies);
-    setLoading(false);
   }
 
   function addMovie(movie: Movie) {
-    if (watchlist.some(m => m.imdbId === movie.imdbId)) return;
-    setWatchlist(prev => [{ ...movie, id: Date.now() }, ...prev]);
+    if (watchlist.some((m) => m.imdbId === movie.imdbId)) return;
+    setWatchlist((prev) => [{ ...movie, id: Date.now() }, ...prev]);
   }
 
   function deleteMovie(id: number) {
-    setWatchlist(prev => prev.filter(m => m.id !== id));
+    setWatchlist((prev) => prev.filter((m) => m.id !== id));
   }
 
   function toggleWatched(id: number) {
-    setWatchlist(prev =>
-      prev.map(m =>
+    setWatchlist((prev) =>
+      prev.map((m) =>
         m.id === id
           ? { ...m, status: m.status === "watched" ? "watchlist" : "watched" }
           : m
@@ -177,15 +205,14 @@ export default function Home() {
   }
 
   function rateMovie(id: number, rating: number) {
-    setWatchlist(prev =>
-      prev.map(m => (m.id === id ? { ...m, rating } : m))
+    setWatchlist((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, rating } : m))
     );
   }
 
   return (
     <main className="page">
       <div className="container">
-
         <section className="hero">
           <div>
             <h1>CineTrack</h1>
@@ -196,7 +223,9 @@ export default function Home() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Film suchen..."
               />
-              <button className="primary-btn">Suchen</button>
+              <button className="primary-btn" disabled={loading}>
+                {loading ? "Suche..." : "Suchen"}
+              </button>
             </div>
           </div>
 
@@ -229,31 +258,50 @@ export default function Home() {
         <section className="section">
           <h2>Suchergebnisse</h2>
 
-          <div className="search-grid">
-            {searchResults.map(movie => (
-              <div key={movie.id} className="search-card">
-                {movie.poster && (
-                  <img className="search-poster" src={movie.poster} alt={movie.title} />
-                )}
-                <div className="search-content">
-                  <h3>{movie.title}</h3>
-                  <p className="muted">{movie.year}</p>
-                  <button
-                    className="primary-btn small"
-                    onClick={() => addMovie(movie)}
-                  >
-                    +
-                  </button>
+          {loading ? (
+            <p className="muted">Suche läuft...</p>
+          ) : (
+            <div className="search-grid">
+              {searchResults.map((movie) => (
+                <div key={movie.id} className="search-card">
+                  {movie.poster && (
+                    <img
+                      className="search-poster"
+                      src={movie.poster}
+                      alt={movie.title}
+                    />
+                  )}
+                  <div className="search-content">
+                    <h3>{movie.title}</h3>
+                    <p className="muted">{movie.year}</p>
+
+                    <div className="genres">
+                      {movie.genres.map((g) => (
+                        <span key={g} className="genre-pill">
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+
+                    <p className="muted">{movie.plot}</p>
+
+                    <button
+                      className="primary-btn small"
+                      onClick={() => addMovie(movie)}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="section">
           <h2>Watchlist</h2>
 
-          {watchlist.map(movie => (
+          {watchlist.map((movie) => (
             <MovieCard
               key={movie.id}
               movie={movie}
@@ -263,7 +311,6 @@ export default function Home() {
             />
           ))}
         </section>
-
       </div>
     </main>
   );
