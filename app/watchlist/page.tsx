@@ -36,32 +36,86 @@ function MovieCard({
         background: "#f8fafc",
         border: "1px solid #e5e7eb",
         borderRadius: "20px",
-        padding: "16px",
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateColumns: "220px 1fr",
+        gap: "18px",
       }}
     >
-      <h3 style={{ marginTop: 0 }}>{movie.title}</h3>
-      <p>{movie.year}</p>
-      <p>{movie.plot || "Keine Beschreibung verfügbar"}</p>
+      {movie.poster ? (
+        <img
+          src={movie.poster}
+          alt={movie.title}
+          style={{
+            width: "220px",
+            height: "330px",
+            objectFit: "cover",
+            background: "#e5e7eb",
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: "220px",
+            height: "330px",
+            background: "#e5e7eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#64748b",
+          }}
+        >
+          Kein Poster
+        </div>
+      )}
 
-      <p>
-        Status: <strong>{movie.status === "watched" ? "Gesehen" : "Watchlist"}</strong>
-      </p>
+      <div
+        style={{
+          padding: "18px 18px 18px 0",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: 10, fontSize: "28px" }}>
+          {movie.title}
+        </h3>
 
-      {movie.rating != null ? <p>Bewertung: {movie.rating}/10</p> : null}
+        <p style={{ color: "#64748b", marginTop: 0, marginBottom: 12 }}>
+          {movie.year}
+        </p>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        <button onClick={() => onToggleWatched(movie.id)}>
-          {movie.status === "watched" ? "Zur Watchlist" : "Als gesehen"}
-        </button>
-        <button onClick={() => onDelete(movie.id)}>Löschen</button>
-      </div>
+        <p style={{ marginBottom: 14 }}>
+          Status:{" "}
+          <strong>{movie.status === "watched" ? "Gesehen" : "Watchlist"}</strong>
+        </p>
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-          <button key={n} onClick={() => onRate(movie.id, n)}>
-            {n}
+        {movie.rating != null ? (
+          <p style={{ marginBottom: 14 }}>Bewertung: {movie.rating}/10</p>
+        ) : (
+          <p style={{ marginBottom: 14 }}>Bewertung: —</p>
+        )}
+
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            marginBottom: 14,
+          }}
+        >
+          <button onClick={() => onToggleWatched(movie.id)}>
+            {movie.status === "watched" ? "Zur Watchlist" : "Als gesehen"}
           </button>
-        ))}
+          <button onClick={() => onDelete(movie.id)}>Löschen</button>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+            <button key={n} onClick={() => onRate(movie.id, n)}>
+              {n}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -156,7 +210,9 @@ export default function WatchlistPage() {
         <h1 style={{ marginTop: 0 }}>Watchlist</h1>
 
         {loading ? <p>Lädt...</p> : null}
-        {!loading && watchlist.length === 0 ? <p>Noch keine Filme gespeichert.</p> : null}
+        {!loading && watchlist.length === 0 ? (
+          <p>Noch keine Filme gespeichert.</p>
+        ) : null}
 
         <div style={{ display: "grid", gap: 16 }}>
           {watchlist.map((movie) => (
