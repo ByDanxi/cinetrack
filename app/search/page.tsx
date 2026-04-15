@@ -17,6 +17,10 @@ type Movie = {
   plot: string;
   rating?: number | null;
   status: MovieStatus;
+  genres?: string[];
+  runtime?: string;
+  actors?: string;
+  imdbRating?: string;
 };
 
 export default function SearchPage() {
@@ -44,21 +48,61 @@ export default function SearchPage() {
 
       if (!data.Search) {
         setSearchResults([]);
+        setMessage("Keine Ergebnisse gefunden.");
         return;
       }
 
-      const movies: Movie[] = data.Search.map((movie: any) => ({
-        id: movie.imdbID,
-        imdb_id: movie.imdbID,
-        title: movie.Title,
-        year: Number.parseInt(movie.Year, 10) || 0,
-        poster: movie.Poster !== "N/A" ? movie.Poster : "",
-        plot: "Keine Beschreibung verfügbar",
-        rating: null,
-        status: "watchlist",
-      }));
+      const detailedMovies = await Promise.all(
+        data.Search.slice(0, 8).map(async (movie: any) => {
+          try {
+            const detailRes = await fetch(
+              `https://www.omdbapi.com/?apikey=${API_KEY}&i=${movie.imdbID}&plot=short`
+            );
+            const detail = await detailRes.json();
 
-      setSearchResults(movies);
+            return {
+              id: movie.imdbID,
+              imdb_id: movie.imdbID,
+              title: detail.Title || movie.Title,
+              year: Number.parseInt(detail.Year, 10) || 0,
+              poster: detail.Poster && detail.Poster !== "N/A" ? detail.Poster : "",
+              plot:
+                detail.Plot && detail.Plot !== "N/A"
+                  ? detail.Plot
+                  : "Keine Beschreibung verfügbar",
+              rating: null,
+              status: "watchlist" as MovieStatus,
+              genres:
+                detail.Genre && detail.Genre !== "N/A"
+                  ? detail.Genre.split(",").map((g: string) => g.trim())
+                  : ["N/A"],
+              runtime: detail.Runtime && detail.Runtime !== "N/A" ? detail.Runtime : "",
+              actors: detail.Actors && detail.Actors !== "N/A" ? detail.Actors : "",
+              imdbRating:
+                detail.imdbRating && detail.imdbRating !== "N/A"
+                  ? detail.imdbRating
+                  : "",
+            } satisfies Movie;
+          } catch {
+            return {
+              id: movie.imdbID,
+              imdb_id: movie.imdbID,
+              title: movie.Title,
+              year: Number.parseInt(movie.Year, 10) || 0,
+              poster: movie.Poster !== "N/A" ? movie.Poster : "",
+              plot: "Keine Beschreibung verfügbar",
+              rating: null,
+              status: "watchlist" as MovieStatus,
+              genres: ["N/A"],
+              runtime: "",
+              actors: "",
+              imdbRating: "",
+            } satisfies Movie;
+          }
+        })
+      );
+
+      setSearchResults(detailedMovies);
     } catch {
       setMessage("Suche fehlgeschlagen.");
     } finally {
@@ -119,18 +163,26 @@ export default function SearchPage() {
           padding: "20px",
         }}
       >
-        <h1 style={{ marginTop: 0 }}>Suche</h1>
+        <h1 style={{ marginTop: 0, fontSize: "56px", lineHeight: 1 }}>Suche</h1>
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginBottom: 20,
+            alignItems: "center",
+          }}
+        >
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Film suchen..."
             style={{
               flex: 1,
-              padding: "12px",
-              borderRadius: "12px",
+              padding: "14px",
+              borderRadius: "14px",
               border: "1px solid #d1d5db",
+              fontSize: "16px",
             }}
           />
           <button onClick={() => searchMovies(query)}>Suchen</button>
@@ -139,21 +191,103 @@ export default function SearchPage() {
         {message ? <p>{message}</p> : null}
         {loadingSearch ? <p>Suche läuft...</p> : null}
 
-        <div style={{ display: "grid", gap: 16 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "18px",
+          }}
+        >
           {searchResults.map((movie) => (
             <div
               key={movie.id}
               style={{
                 background: "#f8fafc",
                 border: "1px solid #e5e7eb",
-                borderRadius: "16px",
-                padding: "16px",
+                borderRadius: "20px",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
               }}
             >
-              <h3 style={{ marginTop: 0 }}>{movie.title}</h3>
-              <p>{movie.year}</p>
-              <p>{movie.plot}</p>
-              <button onClick={() => addMovie(movie)}>Zur Watchlist hinzufügen</button>
+              {movie.poster ? (
+                <img
+                  src={movie.poster}
+                  alt={movie.title}
+                  style={{
+                    width: "100%",
+                    height: "320px",
+                    objectFit: "cover",
+                    background: "#e5e7eb",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "320px",
+                    background: "#e5e7eb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#64748b",
+                  }}
+                >
+                  Kein Poster
+                </div>
+              )}
+
+              <div style={{ padding: "16px" }}>
+                <h3 style={{ marginTop: 0, marginBottom: 10, fontSize: "18px" }}>
+                  {movie.title}
+                </h3>
+
+                <p style={{ color: "#64748b", marginTop: 0 }}>{movie.year}</p>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                    marginBottom: "12px",
+                  }}
+                >
+                  {(movie.genres || ["N/A"]).map((genre) => (
+                    <span
+                      key={genre}
+                      style={{
+                        background: "#e5e7eb",
+                        color: "#111827",
+                        padding: "4px 10px",
+                        borderRadius: "999px",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {genre}
+                    </span>
+                  ))}
+                </div>
+
+                <p
+                  style={{
+                    color: "#334155",
+                    lineHeight: 1.5,
+                    minHeight: "72px",
+                  }}
+                >
+                  {movie.plot}
+                </p>
+
+                <div style={{ color: "#64748b", fontSize: "14px", marginBottom: "12px" }}>
+                  {movie.runtime ? <p style={{ margin: "4px 0" }}>⏱ {movie.runtime}</p> : null}
+                  {movie.imdbRating ? (
+                    <p style={{ margin: "4px 0" }}>⭐ IMDb {movie.imdbRating}</p>
+                  ) : null}
+                  {movie.actors ? <p style={{ margin: "4px 0" }}>🎭 {movie.actors}</p> : null}
+                </div>
+
+                <button onClick={() => addMovie(movie)}>Zur Watchlist hinzufügen</button>
+              </div>
             </div>
           ))}
         </div>
