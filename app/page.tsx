@@ -1,77 +1,46 @@
 export default function HomePage() {
   return (
-    <main style={{ padding: "16px" }}>
+    <main className="bg-gray-100 min-h-screen">
       
-      {/* 🔵 HEADER (kein full screen mehr!) */}
-      <section
-        style={{
-          background: "#2563eb",
-          color: "white",
-          padding: "20px",
-          borderRadius: "20px",
-          marginBottom: "20px",
-        }}
-      >
-        <h1 style={{ fontSize: "24px", marginBottom: "8px" }}>
-          FilmApp
-        </h1>
+      {/* 🔵 HEADER */}
+      <section className="bg-blue-600 text-white p-4 rounded-b-2xl">
+        <h1 className="text-xl font-bold">FilmApp</h1>
 
-        <p style={{ fontSize: "14px", opacity: 0.9 }}>
+        <p className="text-sm opacity-90">
           Verwalte deine Watchlist und entdecke neue Filme
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            marginTop: "16px",
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="mt-3 flex gap-2">
           <a href="/search">
-            <button>🔍 Suchen</button>
+            <button className="bg-white text-blue-600 px-3 py-2 rounded">
+              🔍 Suchen
+            </button>
           </a>
 
           <a href="/watchlist">
-            <button>🎬 Watchlist</button>
+            <button className="bg-white text-blue-600 px-3 py-2 rounded">
+              🎬 Watchlist
+            </button>
           </a>
         </div>
       </section>
 
-      {/* 📊 STATS */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "12px",
-        }}
-      >
-        <div
-          style={{
-            background: "white",
-            padding: "16px",
-            borderRadius: "16px",
-          }}
-        >
-          <p style={{ fontSize: "14px", color: "#6b7280" }}>
-            Filme
-          </p>
-          <h2>0</h2>
-        </div>
+      {/* 📊 CONTENT */}
+      <div className="p-4">
+        <div className="grid grid-cols-2 gap-3">
+          
+          <div className="bg-white p-4 rounded-xl">
+            <p className="text-gray-500 text-sm">Filme</p>
+            <h2 className="text-lg font-bold">0</h2>
+          </div>
 
-        <div
-          style={{
-            background: "white",
-            padding: "16px",
-            borderRadius: "16px",
-          }}
-        >
-          <p style={{ fontSize: "14px", color: "#6b7280" }}>
-            Gesehen
-          </p>
-          <h2>0</h2>
+          <div className="bg-white p-4 rounded-xl">
+            <p className="text-gray-500 text-sm">Gesehen</p>
+            <h2 className="text-lg font-bold">0</h2>
+          </div>
+
         </div>
-      </section>
+      </div>
 
     </main>
   );
