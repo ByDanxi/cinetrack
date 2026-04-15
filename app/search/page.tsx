@@ -23,6 +23,150 @@ type Movie = {
   imdbRating?: string;
 };
 
+function MovieCard({
+  movie,
+  onAdd,
+}: {
+  movie: Movie;
+  onAdd: (movie: Movie) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const longText = movie.plot && movie.plot.length > 140;
+  const shortPlot =
+    longText && !expanded ? `${movie.plot.slice(0, 140)}...` : movie.plot;
+
+  return (
+    <div
+      style={{
+        background: "#f8fafc",
+        border: "1px solid #e5e7eb",
+        borderRadius: "20px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
+      {movie.poster ? (
+        <img
+          src={movie.poster}
+          alt={movie.title}
+          style={{
+            width: "100%",
+            height: "320px",
+            objectFit: "cover",
+            background: "#e5e7eb",
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: "100%",
+            height: "320px",
+            background: "#e5e7eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#64748b",
+          }}
+        >
+          Kein Poster
+        </div>
+      )}
+
+      <div
+        style={{
+          padding: "16px",
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: 10, fontSize: "18px" }}>
+          {movie.title}
+        </h3>
+
+        <p style={{ color: "#64748b", marginTop: 0 }}>{movie.year}</p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            flexWrap: "wrap",
+            marginBottom: "12px",
+          }}
+        >
+          {(movie.genres || ["N/A"]).map((genre) => (
+            <span
+              key={genre}
+              style={{
+                background: "#e5e7eb",
+                color: "#111827",
+                padding: "4px 10px",
+                borderRadius: "999px",
+                fontSize: "12px",
+              }}
+            >
+              {genre}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ minHeight: "110px" }}>
+          <p
+            style={{
+              color: "#334155",
+              lineHeight: 1.5,
+              marginBottom: "8px",
+            }}
+          >
+            {shortPlot || "Keine Beschreibung verfügbar"}
+          </p>
+
+          {longText ? (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              style={{
+                background: "transparent",
+                color: "#0f172a",
+                border: "1px solid #cbd5e1",
+                padding: "6px 10px",
+                borderRadius: "10px",
+                fontSize: "13px",
+                cursor: "pointer",
+                marginBottom: "12px",
+              }}
+            >
+              {expanded ? "Weniger anzeigen" : "Mehr lesen"}
+            </button>
+          ) : (
+            <div style={{ height: "36px", marginBottom: "12px" }} />
+          )}
+        </div>
+
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "14px",
+            marginBottom: "12px",
+          }}
+        >
+          {movie.runtime ? <p style={{ margin: "4px 0" }}>⏱ {movie.runtime}</p> : null}
+          {movie.imdbRating ? (
+            <p style={{ margin: "4px 0" }}>⭐ IMDb {movie.imdbRating}</p>
+          ) : null}
+          {movie.actors ? <p style={{ margin: "4px 0" }}>🎭 {movie.actors}</p> : null}
+        </div>
+
+        <div style={{ marginTop: "auto" }}>
+          <button onClick={() => onAdd(movie)}>Zur Watchlist hinzufügen</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
@@ -199,96 +343,7 @@ export default function SearchPage() {
           }}
         >
           {searchResults.map((movie) => (
-            <div
-              key={movie.id}
-              style={{
-                background: "#f8fafc",
-                border: "1px solid #e5e7eb",
-                borderRadius: "20px",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {movie.poster ? (
-                <img
-                  src={movie.poster}
-                  alt={movie.title}
-                  style={{
-                    width: "100%",
-                    height: "320px",
-                    objectFit: "cover",
-                    background: "#e5e7eb",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    height: "320px",
-                    background: "#e5e7eb",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#64748b",
-                  }}
-                >
-                  Kein Poster
-                </div>
-              )}
-
-              <div style={{ padding: "16px" }}>
-                <h3 style={{ marginTop: 0, marginBottom: 10, fontSize: "18px" }}>
-                  {movie.title}
-                </h3>
-
-                <p style={{ color: "#64748b", marginTop: 0 }}>{movie.year}</p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    flexWrap: "wrap",
-                    marginBottom: "12px",
-                  }}
-                >
-                  {(movie.genres || ["N/A"]).map((genre) => (
-                    <span
-                      key={genre}
-                      style={{
-                        background: "#e5e7eb",
-                        color: "#111827",
-                        padding: "4px 10px",
-                        borderRadius: "999px",
-                        fontSize: "12px",
-                      }}
-                    >
-                      {genre}
-                    </span>
-                  ))}
-                </div>
-
-                <p
-                  style={{
-                    color: "#334155",
-                    lineHeight: 1.5,
-                    minHeight: "72px",
-                  }}
-                >
-                  {movie.plot}
-                </p>
-
-                <div style={{ color: "#64748b", fontSize: "14px", marginBottom: "12px" }}>
-                  {movie.runtime ? <p style={{ margin: "4px 0" }}>⏱ {movie.runtime}</p> : null}
-                  {movie.imdbRating ? (
-                    <p style={{ margin: "4px 0" }}>⭐ IMDb {movie.imdbRating}</p>
-                  ) : null}
-                  {movie.actors ? <p style={{ margin: "4px 0" }}>🎭 {movie.actors}</p> : null}
-                </div>
-
-                <button onClick={() => addMovie(movie)}>Zur Watchlist hinzufügen</button>
-              </div>
-            </div>
+            <MovieCard key={movie.id} movie={movie} onAdd={addMovie} />
           ))}
         </div>
       </section>
