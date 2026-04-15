@@ -1,20 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "CineTrack",
-  description: "Film Watchlist App",
+  title: "FilmApp",
+  description: "Persönliche Filmverwaltung",
 };
 
 export const viewport: Viewport = {
@@ -29,8 +19,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+      <body>
+        <div className="app-shell">
+          <aside className="sidebar">
+            <div className="sidebar-brand">FilmApp</div>
+
+            <nav className="sidebar-nav">
+              <Link href="/">Startseite</Link>
+              <Link href="/watchlist">Watchlist</Link>
+              <Link href="/search">Suche</Link>
+            </nav>
+          </aside>
+
+          <main className="page-content">{children}</main>
+        </div>
       </body>
     </html>
   );
