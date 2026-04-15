@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "../../utils/supabase/client";
 
 const supabase = createClient();
@@ -169,20 +169,45 @@ function MovieCard({
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [message, setMessage] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [query]);
+
+  useEffect(() => {
+    if (debouncedQuery.trim()) {
+      searchMovies(debouncedQuery);
+    } else {
+      setSearchResults([]);
+      setMessage("");
+      setHasSearched(false);
+    }
+  }, [debouncedQuery]);
 
   async function searchMovies(search: string) {
     const trimmed = search.trim();
 
     if (!trimmed) {
       setSearchResults([]);
+      setMessage("");
+      setHasSearched(false);
       return;
     }
 
     setLoadingSearch(true);
     setMessage("");
+    setHasSearched(true);
 
     try {
       const res = await fetch(
@@ -247,7 +272,9 @@ export default function SearchPage() {
       );
 
       setSearchResults(detailedMovies);
+      setMessage("");
     } catch {
+      setSearchResults([]);
       setMessage("Suche fehlgeschlagen.");
     } finally {
       setLoadingSearch(false);
@@ -329,11 +356,13 @@ export default function SearchPage() {
               fontSize: "16px",
             }}
           />
-          <button onClick={() => searchMovies(query)}>Suchen</button>
         </div>
 
-        {message ? <p>{message}</p> : null}
         {loadingSearch ? <p>Suche läuft...</p> : null}
+        {!loadingSearch && message ? <p>{message}</p> : null}
+        {!loadingSearch && hasSearched && !message && searchResults.length === 0 ? (
+          <p>Keine Ergebnisse gefunden.</p>
+        ) : null}
 
         <div
           style={{
