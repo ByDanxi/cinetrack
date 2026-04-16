@@ -43,22 +43,38 @@ export default async function WatchlistPage() {
   let initialWatchlists: Watchlist[] = [];
   let initialSelectedWatchlistId: string | null = null;
 
+  let membershipsCount = 0;
+  let membershipError: string | null = null;
+  let watchlistsCount = 0;
+  let watchlistsError: string | null = null;
+  let moviesError: string | null = null;
+
   if (user) {
-    const { data: ownWatchlistsData } = await supabase
+    const { data: ownWatchlistsData, error: ownWatchlistsError } = await supabase
       .from("watchlists")
       .select("id, name, user_id, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
+
+    if (ownWatchlistsError) {
+      watchlistsError = ownWatchlistsError.message;
+    }
 
     const ownWatchlists: Watchlist[] = (ownWatchlistsData || []).map((watchlist) => ({
       ...(watchlist as Omit<Watchlist, "role">),
       role: "owner",
     }));
 
-    const { data: membershipData } = await supabase
+    const { data: membershipData, error: membershipQueryError } = await supabase
       .from("watchlist_members")
       .select("watchlist_id, role")
       .eq("user_id", user.id);
+
+    membershipsCount = membershipData?.length ?? 0;
+
+    if (membershipQueryError) {
+      membershipError = membershipQueryError.message;
+    }
 
     let sharedWatchlists: Watchlist[] = [];
 
@@ -68,11 +84,16 @@ export default async function WatchlistPage() {
         .map((item) => item.watchlist_id);
 
       if (sharedIds.length > 0) {
-        const { data: sharedWatchlistsData } = await supabase
-          .from("watchlists")
-          .select("id, name, user_id, created_at")
-          .in("id", sharedIds)
-          .order("created_at", { ascending: true });
+        const { data: sharedWatchlistsData, error: sharedWatchlistsQueryError } =
+          await supabase
+            .from("watchlists")
+            .select("id, name, user_id, created_at")
+            .in("id", sharedIds)
+            .order("created_at", { ascending: true });
+
+        if (sharedWatchlistsQueryError) {
+          watchlistsError = sharedWatchlistsQueryError.message;
+        }
 
         sharedWatchlists = (sharedWatchlistsData || []).map((watchlist) => {
           const membership = membershipData.find(
@@ -88,11 +109,12 @@ export default async function WatchlistPage() {
     }
 
     initialWatchlists = [...ownWatchlists, ...sharedWatchlists];
+    watchlistsCount = initialWatchlists.length;
 
     if (initialWatchlists.length > 0) {
       initialSelectedWatchlistId = initialWatchlists[0].id;
 
-      const { data: moviesData } = await supabase
+      const { data: moviesData, error: moviesQueryError } = await supabase
         .from("movies")
         .select(
           "id, title, year, poster, plot, rating, status, imdb_id, user_id, watchlist_id"
@@ -100,17 +122,55 @@ export default async function WatchlistPage() {
         .eq("watchlist_id", initialSelectedWatchlistId)
         .order("created_at", { ascending: false });
 
+      if (moviesQueryError) {
+        moviesError = moviesQueryError.message;
+      }
+
       if (moviesData) {
         initialMovies = sortMovies((moviesData || []) as Movie[]);
       }
     }
   }
 
+  const debug = {
+    userId: user?.id ?? null,
+    membershipsCount,
+    membershipError,
+    watchlistsCount,
+    watchlistsError,
+    selectedWatchlistId: initialSelectedWatchlistId,
+    moviesError,
+  };
+
   return (
-    <WatchlistClient
-      initialMovies={initialMovies}
-      initialWatchlists={initialWatchlists}
-      initialSelectedWatchlistId={initialSelectedWatchlistId}
-    />
+    <>
+      <div
+        style={{
+          margin: "16px",
+          padding: "12px 16px",
+          borderRadius: "12px",
+          background: "#fff7ed",
+          border: "1px solid #fdba74",
+          color: "#9a3412",
+          fontSize: "14px",
+          lineHeight: 1.5,
+        }}
+      >
+        <strong>Debug WatchlistPage</strong>
+        <div>User ID: {String(debug.userId)}</div>
+        <div>Memberships Count: {debug.membershipsCount}</div>
+        <div>Membership Error: {debug.membershipError ?? "none"}</div>
+        <div>Watchlists Count: {debug.watchlistsCount}</div>
+        <div>Watchlists Error: {debug.watchlistsError ?? "none"}</div>
+        <div>Selected Watchlist: {debug.selectedWatchlistId ?? "none"}</div>
+        <div>Movies Error: {debug.moviesError ?? "none"}</div>
+      </div>
+
+      <WatchlistClient
+        initialMovies={initialMovies}
+        initialWatchlists={initialWatchlists}
+        initialSelectedWatchlistId={initialSelectedWatchlistId}
+      />
+    </>
   );
 }
