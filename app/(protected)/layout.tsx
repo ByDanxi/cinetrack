@@ -4,34 +4,18 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "flex" }}>
-      {/* Sidebar */}
-      <aside
-        style={{
-          width: 220,
-          minHeight: "100vh",
-          background: "#0b1020",
-          color: "#fff",
-          padding: "20px 16px",
-        }}
-      >
-        <h2 style={{ marginBottom: 20 }}>FilmApp</h2>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-brand">FilmApp</div>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <a href="/" style={{ color: "#fff", textDecoration: "none" }}>
-            Startseite
-          </a>
-          <a href="/watchlist" style={{ color: "#fff", textDecoration: "none" }}>
-            Watchlist
-          </a>
-          <a href="/search" style={{ color: "#fff", textDecoration: "none" }}>
-            Suche
-          </a>
+        <nav className="sidebar-nav">
+          <a href="/">Startseite</a>
+          <a href="/watchlist">Watchlist</a>
+          <a href="/search">Suche</a>
         </nav>
       </aside>
 
-      {/* Content */}
-      <main style={{ flex: 1 }}>{children}</main>
+      <main className="page-content">{children}</main>
     </div>
   );
 }
