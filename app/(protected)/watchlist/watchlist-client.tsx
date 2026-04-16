@@ -37,6 +37,11 @@ type WatchlistMember = {
   }[] | null;
 };
 
+type UserSuggestion = {
+  id: string;
+  username: string;
+};
+
 type WatchlistClientProps = {
   initialMovies: Movie[];
   initialWatchlists: Watchlist[];
@@ -119,6 +124,9 @@ export default function WatchlistClient({
   const [members, setMembers] = useState<WatchlistMember[]>([]);
   const [newListName, setNewListName] = useState("");
   const [shareUserId, setShareUserId] = useState("");
+  const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -138,6 +146,28 @@ export default function WatchlistClient({
 
     loadMembers(selectedWatchlistId);
   }, [selectedWatchlistId]);
+
+  useEffect(() => {
+    if (!selectedWatchlistId || !isOwner) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const trimmed = shareUserId.trim().toLowerCase();
+
+    if (trimmed.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      searchUsers(trimmed);
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [shareUserId, selectedWatchlistId, isOwner, members]);
 
   async function loadMembers(watchlistId: string) {
     const { data, error } = await supabase
@@ -160,6 +190,36 @@ export default function WatchlistClient({
     }
 
     setMembers((data || []) as WatchlistMember[]);
+  }
+
+  async function searchUsers(query: string) {
+    setIsSearchingUsers(true);
+
+    const memberIds = members.map((member) => member.user_id);
+
+    let request = supabase
+      .from("profiles")
+      .select("id, username")
+      .ilike("username", `%${query}%`)
+      .order("username", { ascending: true })
+      .limit(6);
+
+    if (memberIds.length > 0) {
+      request = request.not("id", "in", `(${memberIds.join(",")})`);
+    }
+
+    const { data, error } = await request;
+
+    if (error) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setIsSearchingUsers(false);
+      return;
+    }
+
+    setSuggestions((data || []) as UserSuggestion[]);
+    setShowSuggestions(true);
+    setIsSearchingUsers(false);
   }
 
   async function loadMoviesForWatchlist(watchlistId: string) {
@@ -188,6 +248,9 @@ export default function WatchlistClient({
   async function handleSelectWatchlist(watchlistId: string) {
     if (!watchlistId) return;
     setSelectedWatchlistId(watchlistId);
+    setShareUserId("");
+    setSuggestions([]);
+    setShowSuggestions(false);
     await loadMoviesForWatchlist(watchlistId);
   }
 
@@ -393,6 +456,8 @@ export default function WatchlistClient({
 
     await loadMembers(selectedWatchlistId);
     setShareUserId("");
+    setSuggestions([]);
+    setShowSuggestions(false);
     setSuccessMessage("Mitglied wurde hinzugefügt.");
   }
 
@@ -424,6 +489,11 @@ export default function WatchlistClient({
 
     await loadMembers(selectedWatchlistId);
     setSuccessMessage("Mitglied wurde entfernt.");
+  }
+
+  function selectSuggestion(username: string) {
+    setShareUserId(username);
+    setShowSuggestions(false);
   }
 
   return (
@@ -496,14 +566,85 @@ export default function WatchlistClient({
         </div>
 
         {selectedWatchlistId && isOwner ? (
-          <div className="watchlist-toolbar-row">
-            <input
-              type="text"
-              placeholder="Benutzername eingeben"
-              value={shareUserId}
-              onChange={(e) => setShareUserId(e.target.value)}
-              className="watchlist-input"
-            />
+          <div
+            className="watchlist-toolbar-row"
+            style={{ position: "relative", alignItems: "flex-start" }}
+          >
+            <div style={{ position: "relative", width: "100%", maxWidth: "260px" }}>
+              <input
+                type="text"
+                placeholder="Benutzername eingeben"
+                value={shareUserId}
+                onChange={(e) => {
+                  setShareUserId(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (suggestions.length > 0) setShowSuggestions(true);
+                }}
+                className="watchlist-input"
+                autoComplete="off"
+              />
+
+              {showSuggestions && (shareUserId.trim().length >= 2 || isSearchingUsers) ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    left: 0,
+                    right: 0,
+                    background: "#fff",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "14px",
+                    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
+                    zIndex: 20,
+                    overflow: "hidden",
+                  }}
+                >
+                  {isSearchingUsers ? (
+                    <div
+                      style={{
+                        padding: "12px 14px",
+                        color: "#64748b",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Suche...
+                    </div>
+                  ) : suggestions.length > 0 ? (
+                    suggestions.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => selectSuggestion(user.username)}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "12px 14px",
+                          border: "none",
+                          background: "#fff",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                        }}
+                      >
+                        @{user.username}
+                      </button>
+                    ))
+                  ) : (
+                    <div
+                      style={{
+                        padding: "12px 14px",
+                        color: "#64748b",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Keine passenden Benutzer gefunden.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
 
             <button type="button" onClick={addMember}>
               Mitglied hinzufügen
