@@ -177,6 +177,59 @@ export default function WatchlistClient({
     }
   }
 
+  async function deleteSelectedWatchlist() {
+    if (!selectedWatchlistId) return;
+
+    if (watchlists.length <= 1) {
+      setErrorMessage("Mindestens eine Watchlist muss bestehen bleiben.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Willst du diese Watchlist wirklich löschen? Alle Filme in dieser Liste werden ebenfalls gelöscht."
+    );
+
+    if (!confirmed) return;
+
+    setErrorMessage("");
+    setIsLoading(true);
+
+    const currentIndex = watchlists.findIndex((w) => w.id === selectedWatchlistId);
+    const fallbackWatchlist =
+      watchlists.find((w) => w.id !== selectedWatchlistId) || null;
+
+    const { error } = await supabase
+      .from("watchlists")
+      .delete()
+      .eq("id", selectedWatchlistId);
+
+    if (error) {
+      setErrorMessage(error.message);
+      setIsLoading(false);
+      return;
+    }
+
+    const updatedWatchlists = watchlists.filter(
+      (w) => w.id !== selectedWatchlistId
+    );
+
+    setWatchlists(updatedWatchlists);
+
+    const nextWatchlist =
+      updatedWatchlists[currentIndex] ||
+      updatedWatchlists[currentIndex - 1] ||
+      fallbackWatchlist;
+
+    if (nextWatchlist) {
+      setSelectedWatchlistId(nextWatchlist.id);
+      await loadMoviesForWatchlist(nextWatchlist.id);
+    } else {
+      setSelectedWatchlistId(null);
+      setWatchlist([]);
+      setIsLoading(false);
+    }
+  }
+
   async function deleteMovie(id: string) {
     setErrorMessage("");
 
@@ -226,37 +279,51 @@ export default function WatchlistClient({
       </div>
 
       <div className="watchlist-toolbar">
-        <label htmlFor="watchlist-select" className="sr-only">
-          Watchlist auswählen
-        </label>
+        <div className="watchlist-toolbar-row">
+          <label htmlFor="watchlist-select" className="sr-only">
+            Watchlist auswählen
+          </label>
 
-        <select
-          id="watchlist-select"
-          aria-label="Watchlist auswählen"
-          value={selectedWatchlistId ?? ""}
-          onChange={(e) => handleSelectWatchlist(e.target.value)}
-          className="watchlist-select"
-        >
-          {watchlists.length === 0 ? (
-            <option value="">Keine Watchlist vorhanden</option>
-          ) : (
-            watchlists.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.name}
-              </option>
-            ))
-          )}
-        </select>
+          <select
+            id="watchlist-select"
+            aria-label="Watchlist auswählen"
+            value={selectedWatchlistId ?? ""}
+            onChange={(e) => handleSelectWatchlist(e.target.value)}
+            className="watchlist-select"
+          >
+            {watchlists.length === 0 ? (
+              <option value="">Keine Watchlist vorhanden</option>
+            ) : (
+              watchlists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))
+            )}
+          </select>
 
-        <input
-          type="text"
-          placeholder="Neue Watchlist"
-          value={newListName}
-          onChange={(e) => setNewListName(e.target.value)}
-          className="watchlist-input"
-        />
+          <button
+            type="button"
+            className="danger-btn"
+            onClick={deleteSelectedWatchlist}
+          >
+            Watchlist löschen
+          </button>
+        </div>
 
-        <button onClick={createWatchlist}>Erstellen</button>
+        <div className="watchlist-toolbar-row">
+          <input
+            type="text"
+            placeholder="Neue Watchlist"
+            value={newListName}
+            onChange={(e) => setNewListName(e.target.value)}
+            className="watchlist-input"
+          />
+
+          <button type="button" onClick={createWatchlist}>
+            Erstellen
+          </button>
+        </div>
       </div>
 
       {errorMessage ? <p>{errorMessage}</p> : null}
