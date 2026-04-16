@@ -1,9 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { createClient } from "../../utils/supabase/client";
-
-const supabase = createClient();
+import { createClient } from "../../utils/supabase/server";
+import WatchlistClient from "./watchlist-client";
 
 type MovieStatus = "watchlist" | "watched";
 
@@ -19,101 +15,24 @@ type Movie = {
   user_id?: string;
 };
 
-function MovieCard({
-  movie,
-  onDelete,
-  onToggleWatched,
-  onRate,
-}: {
-  movie: Movie;
-  onDelete: (id: string) => void;
-  onToggleWatched: (id: string) => void;
-  onRate: (id: string, rating: number) => void;
-}) {
-  return (
-    <article className="watchlist-card">
-      <div className="watchlist-poster-wrap">
-        {movie.poster ? (
-          <img
-            src={movie.poster}
-            alt={movie.title}
-            className="watchlist-poster"
-          />
-        ) : (
-          <div className="watchlist-poster-fallback">Kein Poster</div>
-        )}
-      </div>
-
-      <div className="watchlist-content">
-        <div className="watchlist-top">
-          <div>
-            <h3 className="watchlist-title">{movie.title}</h3>
-            <p className="watchlist-year">{movie.year}</p>
-          </div>
-
-          <span
-            className={`status-badge ${
-              movie.status === "watched"
-                ? "status-badge-watched"
-                : "status-badge-watchlist"
-            }`}
-          >
-            {movie.status === "watched" ? "Gesehen" : "Watchlist"}
-          </span>
-        </div>
-
-        <p className="watchlist-year" style={{ marginBottom: 16 }}>
-          Bewertung: {movie.rating != null ? `${movie.rating}/10` : "—"}
-        </p>
-
-        <div className="watchlist-actions">
-          <button onClick={() => onToggleWatched(movie.id)}>
-            {movie.status === "watched" ? "Zur Watchlist" : "Als gesehen"}
-          </button>
-
-          <button className="danger-btn" onClick={() => onDelete(movie.id)}>
-            Löschen
-          </button>
-        </div>
-
-        <div className="rating-row">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-            <button
-              key={n}
-              className={`rating-pill ${movie.rating === n ? "active" : ""}`}
-              onClick={() => onRate(movie.id, n)}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </div>
-    </article>
-  );
+function sortMovies(movies: Movie[]) {
+  return [...movies].sort((a, b) => {
+    if (a.status === b.status) return 0;
+    if (a.status === "watchlist") return -1;
+    return 1;
+  });
 }
 
-export default function WatchlistPage() {
-  const [watchlist, setWatchlist] = useState<Movie[]>([]);
-  const [loading, setLoading] = useState(true);
+export default async function WatchlistPage() {
+  const supabase = await createClient();
 
-  function sortMovies(movies: Movie[]) {
-    return [...movies].sort((a, b) => {
-      if (a.status === b.status) return 0;
-      if (a.status === "watchlist") return -1;
-      return 1;
-    });
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  async function loadMovies() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  let initialMovies: Movie[] = [];
 
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
+  if (user) {
     const { data, error } = await supabase
       .from("watchlist")
       .select("*")
@@ -121,88 +40,9 @@ export default function WatchlistPage() {
       .order("created_at", { ascending: false });
 
     if (!error) {
-      setWatchlist(sortMovies((data || []) as Movie[]));
-    }
-
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    loadMovies();
-  }, []);
-
-  async function deleteMovie(id: string) {
-    const { error } = await supabase.from("watchlist").delete().eq("id", id);
-
-    if (!error) {
-      setWatchlist((prev) =>
-        sortMovies(prev.filter((movie) => movie.id !== id))
-      );
+      initialMovies = sortMovies((data || []) as Movie[]);
     }
   }
 
-  async function toggleWatched(id: string) {
-    const movie = watchlist.find((m) => m.id === id);
-    if (!movie) return;
-
-    const newStatus: MovieStatus =
-      movie.status === "watched" ? "watchlist" : "watched";
-
-    const { error } = await supabase
-      .from("watchlist")
-      .update({ status: newStatus })
-      .eq("id", id);
-
-    if (!error) {
-      setWatchlist((prev) =>
-        sortMovies(
-          prev.map((m) =>
-            m.id === id ? { ...m, status: newStatus } : m
-          )
-        )
-      );
-    }
-  }
-
-  async function rateMovie(id: string, rating: number) {
-    const { error } = await supabase
-      .from("watchlist")
-      .update({ rating })
-      .eq("id", id);
-
-    if (!error) {
-      setWatchlist((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, rating } : m))
-      );
-    }
-  }
-
-  return (
-    <section className="section-card">
-      <div className="section-head">
-        <h1>Watchlist</h1>
-        {!loading && watchlist.length > 0 ? (
-          <span className="section-count">
-            {watchlist.length} Film{watchlist.length !== 1 ? "e" : ""}
-          </span>
-        ) : null}
-      </div>
-
-      {!loading && watchlist.length === 0 ? (
-        <p>Noch keine Filme gespeichert.</p>
-      ) : null}
-
-      <div className="watchlist-list">
-        {watchlist.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            onDelete={deleteMovie}
-            onToggleWatched={toggleWatched}
-            onRate={rateMovie}
-          />
-        ))}
-      </div>
-    </section>
-  );
+  return <WatchlistClient initialMovies={initialMovies} />;
 }
