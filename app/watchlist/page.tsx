@@ -135,7 +135,9 @@ export default function WatchlistPage() {
     const { error } = await supabase.from("watchlist").delete().eq("id", id);
 
     if (!error) {
-      setWatchlist((prev) => sortMovies(prev.filter((movie) => movie.id !== id)));
+      setWatchlist((prev) =>
+        sortMovies(prev.filter((movie) => movie.id !== id))
+      );
     }
   }
 
@@ -154,7 +156,9 @@ export default function WatchlistPage() {
     if (!error) {
       setWatchlist((prev) =>
         sortMovies(
-          prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
+          prev.map((m) =>
+            m.id === id ? { ...m, status: newStatus } : m
+          )
         )
       );
     }
@@ -184,8 +188,6 @@ export default function WatchlistPage() {
             </span>
           ) : null}
         </div>
-
-        {loading ? <p>Lädt...</p> : null}
 
         {!loading && watchlist.length === 0 ? (
           <p>Noch keine Filme gespeichert.</p>

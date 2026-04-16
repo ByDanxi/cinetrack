@@ -238,8 +238,9 @@ button:hover {
 
 /* Watchlist */
 .watchlist-list {
-  display: grid;
-  gap: 18px;
+display: grid;
+gap: 18px;
+min-height: 420px;
 }
 
 .watchlist-card {
