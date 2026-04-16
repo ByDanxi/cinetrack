@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "../../utils/supabase/client";
 
 const supabase = createClient();
@@ -25,6 +25,13 @@ type Watchlist = {
   name: string;
   user_id: string;
   created_at: string;
+  role: "owner" | "member";
+};
+
+type WatchlistMember = {
+  id: string;
+  user_id: string;
+  role: "owner" | "member";
 };
 
 type WatchlistClientProps = {
@@ -106,13 +113,38 @@ export default function WatchlistClient({
     initialSelectedWatchlistId
   );
   const [watchlist, setWatchlist] = useState<Movie[]>(initialMovies);
+  const [members, setMembers] = useState<WatchlistMember[]>([]);
   const [newListName, setNewListName] = useState("");
+  const [shareUserId, setShareUserId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const selectedWatchlist = useMemo(
+    () => watchlists.find((list) => list.id === selectedWatchlistId) || null,
+    [watchlists, selectedWatchlistId]
+  );
+
+  const isOwner = selectedWatchlist?.role === "owner";
+
+  async function loadMembers(watchlistId: string) {
+    const { data, error } = await supabase
+      .from("watchlist_members")
+      .select("id, user_id, role")
+      .eq("watchlist_id", watchlistId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      return;
+    }
+
+    setMembers((data || []) as WatchlistMember[]);
+  }
 
   async function loadMoviesForWatchlist(watchlistId: string) {
     setIsLoading(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     const { data, error } = await supabase
       .from("movies")
@@ -129,6 +161,7 @@ export default function WatchlistClient({
     }
 
     setWatchlist(sortMovies((data || []) as Movie[]));
+    await loadMembers(watchlistId);
     setIsLoading(false);
   }
 
@@ -143,6 +176,7 @@ export default function WatchlistClient({
     if (!trimmedName) return;
 
     setErrorMessage("");
+    setSuccessMessage("");
 
     const {
       data: { user },
@@ -169,19 +203,36 @@ export default function WatchlistClient({
     }
 
     if (data) {
-      const createdWatchlist = data as Watchlist;
+      const createdWatchlist: Watchlist = {
+        ...(data as Omit<Watchlist, "role">),
+        role: "owner",
+      };
+
       setWatchlists((prev) => [...prev, createdWatchlist]);
       setSelectedWatchlistId(createdWatchlist.id);
       setWatchlist([]);
+      setMembers([
+        {
+          id: crypto.randomUUID(),
+          user_id: user.id,
+          role: "owner",
+        },
+      ]);
       setNewListName("");
+      setSuccessMessage("Watchlist wurde erstellt.");
     }
   }
 
   async function deleteSelectedWatchlist() {
-    if (!selectedWatchlistId) return;
+    if (!selectedWatchlistId || !selectedWatchlist) return;
 
-    if (watchlists.length <= 1) {
-      setErrorMessage("Mindestens eine Watchlist muss bestehen bleiben.");
+    if (!isOwner) {
+      setErrorMessage("Nur der Besitzer kann diese Watchlist löschen.");
+      return;
+    }
+
+    if (watchlists.filter((w) => w.role === "owner").length <= 1) {
+      setErrorMessage("Mindestens eine eigene Watchlist muss bestehen bleiben.");
       return;
     }
 
@@ -192,6 +243,7 @@ export default function WatchlistClient({
     if (!confirmed) return;
 
     setErrorMessage("");
+    setSuccessMessage("");
     setIsLoading(true);
 
     const currentIndex = watchlists.findIndex((w) => w.id === selectedWatchlistId);
@@ -226,12 +278,14 @@ export default function WatchlistClient({
     } else {
       setSelectedWatchlistId(null);
       setWatchlist([]);
+      setMembers([]);
       setIsLoading(false);
     }
   }
 
   async function deleteMovie(id: string) {
     setErrorMessage("");
+    setSuccessMessage("");
 
     const { error } = await supabase.from("movies").delete().eq("id", id);
 
@@ -248,6 +302,7 @@ export default function WatchlistClient({
     if (!movie) return;
 
     setErrorMessage("");
+    setSuccessMessage("");
 
     const newStatus: MovieStatus =
       movie.status === "watched" ? "watchlist" : "watched";
@@ -267,10 +322,92 @@ export default function WatchlistClient({
     );
   }
 
+  async function addMember() {
+    const trimmedUserId = shareUserId.trim();
+
+    if (!selectedWatchlistId) return;
+
+    if (!isOwner) {
+      setErrorMessage("Nur der Besitzer kann Mitglieder hinzufügen.");
+      return;
+    }
+
+    if (!trimmedUserId) return;
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const alreadyExists = members.some((member) => member.user_id === trimmedUserId);
+    if (alreadyExists) {
+      setErrorMessage("Dieser User ist bereits in der Watchlist.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("watchlist_members")
+      .insert({
+        watchlist_id: selectedWatchlistId,
+        user_id: trimmedUserId,
+        role: "member",
+      })
+      .select("id, user_id, role")
+      .single();
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    if (data) {
+      setMembers((prev) => [...prev, data as WatchlistMember]);
+      setShareUserId("");
+      setSuccessMessage("Mitglied wurde hinzugefügt.");
+    }
+  }
+
+  async function removeMember(memberId: string, memberRole: "owner" | "member") {
+    if (!selectedWatchlistId) return;
+
+    if (!isOwner) {
+      setErrorMessage("Nur der Besitzer kann Mitglieder entfernen.");
+      return;
+    }
+
+    if (memberRole === "owner") {
+      setErrorMessage("Der Besitzer kann nicht entfernt werden.");
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const { error } = await supabase
+      .from("watchlist_members")
+      .delete()
+      .eq("id", memberId);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    setMembers((prev) => prev.filter((member) => member.id !== memberId));
+    setSuccessMessage("Mitglied wurde entfernt.");
+  }
+
   return (
     <section className="section-card">
       <div className="section-head">
-        <h1>Watchlist</h1>
+        <div>
+          <h1>Watchlist</h1>
+          {selectedWatchlist ? (
+            <p style={{ margin: "8px 0 0", color: "#64748b" }}>
+              {selectedWatchlist.name} ·{" "}
+              {selectedWatchlist.role === "owner" ? "Eigene Liste" : "Geteilte Liste"}
+            </p>
+          ) : null}
+        </div>
+
         {selectedWatchlistId && watchlist.length > 0 ? (
           <span className="section-count">
             {watchlist.length} Film{watchlist.length !== 1 ? "e" : ""}
@@ -296,19 +433,21 @@ export default function WatchlistClient({
             ) : (
               watchlists.map((list) => (
                 <option key={list.id} value={list.id}>
-                  {list.name}
+                  {list.name} {list.role === "member" ? "• geteilt" : ""}
                 </option>
               ))
             )}
           </select>
 
-          <button
-            type="button"
-            className="danger-btn"
-            onClick={deleteSelectedWatchlist}
-          >
-            Watchlist löschen
-          </button>
+          {isOwner ? (
+            <button
+              type="button"
+              className="danger-btn"
+              onClick={deleteSelectedWatchlist}
+            >
+              Watchlist löschen
+            </button>
+          ) : null}
         </div>
 
         <div className="watchlist-toolbar-row">
@@ -324,9 +463,76 @@ export default function WatchlistClient({
             Erstellen
           </button>
         </div>
+
+        {selectedWatchlistId && isOwner ? (
+          <div className="watchlist-toolbar-row">
+            <input
+              type="text"
+              placeholder="User-ID zum Teilen"
+              value={shareUserId}
+              onChange={(e) => setShareUserId(e.target.value)}
+              className="watchlist-input"
+            />
+
+            <button type="button" onClick={addMember}>
+              Mitglied hinzufügen
+            </button>
+          </div>
+        ) : null}
       </div>
 
+      {selectedWatchlistId ? (
+        <div style={{ marginBottom: "18px" }}>
+          <h2 style={{ marginBottom: "12px" }}>Mitglieder</h2>
+          {members.length === 0 ? (
+            <p>Noch keine Mitglieder geladen.</p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gap: "10px",
+              }}
+            >
+              {members.map((member) => (
+                <div
+                  key={member.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "12px 14px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "14px",
+                    background: "#f8fafc",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <strong>{member.role === "owner" ? "Owner" : "Mitglied"}</strong>
+                    <p style={{ margin: "6px 0 0", color: "#64748b" }}>
+                      {member.user_id}
+                    </p>
+                  </div>
+
+                  {isOwner && member.role !== "owner" ? (
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() => removeMember(member.id, member.role)}
+                    >
+                      Entfernen
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {errorMessage ? <p>{errorMessage}</p> : null}
+      {successMessage ? <p>{successMessage}</p> : null}
       {isLoading ? <p>Filme werden geladen...</p> : null}
 
       {!isLoading && !errorMessage && watchlist.length === 0 ? (

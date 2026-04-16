@@ -45,10 +45,29 @@ export default function HomePage() {
         return;
       }
 
+      const { data: memberships, error: membershipError } = await supabase
+        .from("watchlist_members")
+        .select("watchlist_id")
+        .eq("user_id", user.id);
+
+      if (membershipError) {
+        setLoading(false);
+        return;
+      }
+
+      const watchlistIds =
+        memberships?.map((membership) => membership.watchlist_id) || [];
+
+      if (watchlistIds.length === 0) {
+        setWatchlist([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("movies")
         .select("*")
-        .eq("user_id", user.id);
+        .in("watchlist_id", watchlistIds);
 
       if (!error) {
         setWatchlist((data || []) as Movie[]);
