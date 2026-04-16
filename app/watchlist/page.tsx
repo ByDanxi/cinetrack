@@ -13,6 +13,14 @@ type Movie = {
   status: MovieStatus;
   imdb_id?: string;
   user_id?: string;
+  watchlist_id: string;
+};
+
+type Watchlist = {
+  id: string;
+  name: string;
+  user_id: string;
+  created_at: string;
 };
 
 function sortMovies(movies: Movie[]) {
@@ -31,18 +39,43 @@ export default async function WatchlistPage() {
   } = await supabase.auth.getUser();
 
   let initialMovies: Movie[] = [];
+  let initialWatchlists: Watchlist[] = [];
+  let initialSelectedWatchlistId: string | null = null;
 
   if (user) {
-    const { data, error } = await supabase
-      .from("watchlist")
-      .select("id, title, year, poster, plot, rating, status, imdb_id, user_id")
+    const { data: watchlistsData, error: watchlistsError } = await supabase
+      .from("watchlists")
+      .select("id, name, user_id, created_at")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
 
-    if (!error) {
-      initialMovies = sortMovies((data || []) as Movie[]);
+    if (!watchlistsError && watchlistsData) {
+      initialWatchlists = watchlistsData as Watchlist[];
+
+      if (initialWatchlists.length > 0) {
+        initialSelectedWatchlistId = initialWatchlists[0].id;
+
+        const { data: moviesData, error: moviesError } = await supabase
+          .from("movies")
+          .select(
+            "id, title, year, poster, plot, rating, status, imdb_id, user_id, watchlist_id"
+          )
+          .eq("user_id", user.id)
+          .eq("watchlist_id", initialSelectedWatchlistId)
+          .order("created_at", { ascending: false });
+
+        if (!moviesError) {
+          initialMovies = sortMovies((moviesData || []) as Movie[]);
+        }
+      }
     }
   }
 
-  return <WatchlistClient initialMovies={initialMovies} />;
+  return (
+    <WatchlistClient
+      initialMovies={initialMovies}
+      initialWatchlists={initialWatchlists}
+      initialSelectedWatchlistId={initialSelectedWatchlistId}
+    />
+  );
 }
