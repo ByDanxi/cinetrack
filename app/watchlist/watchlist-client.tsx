@@ -127,19 +127,30 @@ export default function WatchlistClient({
 
   const isOwner = selectedWatchlist?.role === "owner";
 
-  async function loadMembers(watchlistId: string) {
-    const { data, error } = await supabase
-      .from("watchlist_members")
-      .select("id, user_id, role")
-      .eq("watchlist_id", watchlistId)
-      .order("created_at", { ascending: true });
+ async function loadMembers(watchlistId: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-    if (error) {
-      return;
-    }
-
-    setMembers((data || []) as WatchlistMember[]);
+  if (!user) {
+    setMembers([]);
+    return;
   }
+
+  const { data, error } = await supabase
+    .from("watchlist_members")
+    .select("id, user_id, role")
+    .eq("watchlist_id", watchlistId)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    setMembers([]);
+    return;
+  }
+
+  setMembers((data || []) as WatchlistMember[]);
+}
 
   async function loadMoviesForWatchlist(watchlistId: string) {
     setIsLoading(true);
