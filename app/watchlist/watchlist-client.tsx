@@ -342,49 +342,59 @@ export default function WatchlistClient({
     );
   }
 
-  async function addMember() {
-    const trimmedUserId = shareUserId.trim();
+async function addMember() {
+  const trimmedUsername = shareUserId.trim().toLowerCase();
 
-    if (!selectedWatchlistId) return;
+  if (!selectedWatchlistId) return;
 
-    if (!isOwner) {
-      setErrorMessage("Nur der Besitzer kann Mitglieder hinzufügen.");
-      return;
-    }
-
-    if (!trimmedUserId) return;
-
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const alreadyExists = members.some((member) => member.user_id === trimmedUserId);
-    if (alreadyExists) {
-      setErrorMessage("Dieser User ist bereits in der Watchlist.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("watchlist_members")
-      .insert({
-        watchlist_id: selectedWatchlistId,
-        user_id: trimmedUserId,
-        role: "member",
-      })
-      .select("id, user_id, role")
-      .single();
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    if (data) {
-      setMembers((prev) => [...prev, data as WatchlistMember]);
-      setShareUserId("");
-      setSuccessMessage("Mitglied wurde hinzugefügt.");
-    }
+  if (!isOwner) {
+    setErrorMessage("Nur der Besitzer kann Mitglieder hinzufügen.");
+    return;
   }
 
+  if (!trimmedUsername) return;
+
+  setErrorMessage("");
+  setSuccessMessage("");
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, username")
+    .eq("username", trimmedUsername)
+    .single();
+
+  if (profileError || !profile) {
+    setErrorMessage("Benutzername nicht gefunden.");
+    return;
+  }
+
+  const alreadyExists = members.some((member) => member.user_id === profile.id);
+  if (alreadyExists) {
+    setErrorMessage("Dieser User ist bereits in der Watchlist.");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("watchlist_members")
+    .insert({
+      watchlist_id: selectedWatchlistId,
+      user_id: profile.id,
+      role: "member",
+    })
+    .select("id, user_id, role")
+    .single();
+
+  if (error) {
+    setErrorMessage(error.message);
+    return;
+  }
+
+  if (data) {
+    setMembers((prev) => [...prev, data as WatchlistMember]);
+    setShareUserId("");
+    setSuccessMessage("Mitglied wurde hinzugefügt.");
+  }
+}
   async function removeMember(memberId: string, memberRole: "owner" | "member") {
     if (!selectedWatchlistId) return;
 
