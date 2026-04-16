@@ -366,16 +366,17 @@ export default function WatchlistClient({
     setErrorMessage("");
     setSuccessMessage("");
 
-const { data: profile, error: profileError } = await supabase
+const { data: profiles, error: profileError } = await supabase
   .from("profiles")
   .select("id, username")
-  .ilike("username", trimmedUsername)
-  .single();
+  .ilike("username", trimmedUsername);
 
-    if (profileError || !profile) {
-      setErrorMessage("Benutzername nicht gefunden.");
-      return;
-    }
+if (profileError || !profiles || profiles.length === 0) {
+  setErrorMessage("Benutzername nicht gefunden.");
+  return;
+}
+
+const profile = profiles[0]; // <-- wichtig!
 
     const alreadyExists = members.some((member) => member.user_id === profile.id);
     if (alreadyExists) {
