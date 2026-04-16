@@ -43,42 +43,20 @@ export default async function WatchlistPage() {
   let initialWatchlists: Watchlist[] = [];
   let initialSelectedWatchlistId: string | null = null;
 
-  let debug = {
-    userId: user?.id ?? null,
-    membershipError: null as string | null,
-    membershipsCount: 0,
-    watchlistsError: null as string | null,
-    watchlistsCount: 0,
-    moviesError: null as string | null,
-    selectedWatchlistId: null as string | null,
-  };
-
   if (user) {
-    const { data: membershipData, error: membershipError } = await supabase
+    const { data: membershipData } = await supabase
       .from("watchlist_members")
       .select("watchlist_id, role")
       .eq("user_id", user.id);
 
-    if (membershipError) {
-      debug.membershipError = membershipError.message;
-    }
-
-    debug.membershipsCount = membershipData?.length ?? 0;
-
     if (membershipData && membershipData.length > 0) {
       const watchlistIds = membershipData.map((item) => item.watchlist_id);
 
-      const { data: watchlistsData, error: watchlistsError } = await supabase
+      const { data: watchlistsData } = await supabase
         .from("watchlists")
         .select("id, name, user_id, created_at")
         .in("id", watchlistIds)
         .order("created_at", { ascending: true });
-
-      if (watchlistsError) {
-        debug.watchlistsError = watchlistsError.message;
-      }
-
-      debug.watchlistsCount = watchlistsData?.length ?? 0;
 
       if (watchlistsData) {
         initialWatchlists = watchlistsData.map((watchlist) => {
@@ -94,19 +72,14 @@ export default async function WatchlistPage() {
 
         if (initialWatchlists.length > 0) {
           initialSelectedWatchlistId = initialWatchlists[0].id;
-          debug.selectedWatchlistId = initialSelectedWatchlistId;
 
-          const { data: moviesData, error: moviesError } = await supabase
+          const { data: moviesData } = await supabase
             .from("movies")
             .select(
               "id, title, year, poster, plot, rating, status, imdb_id, user_id, watchlist_id"
             )
             .eq("watchlist_id", initialSelectedWatchlistId)
             .order("created_at", { ascending: false });
-
-          if (moviesError) {
-            debug.moviesError = moviesError.message;
-          }
 
           if (moviesData) {
             initialMovies = sortMovies((moviesData || []) as Movie[]);
@@ -115,4 +88,12 @@ export default async function WatchlistPage() {
       }
     }
   }
+
+  return (
+    <WatchlistClient
+      initialMovies={initialMovies}
+      initialWatchlists={initialWatchlists}
+      initialSelectedWatchlistId={initialSelectedWatchlistId}
+    />
+  );
 }
