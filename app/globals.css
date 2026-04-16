@@ -548,11 +548,20 @@ button:hover {
     align-items: stretch;
   }
 
-  .watchlist-select,
-  .watchlist-input {
-    width: 100%;
-    max-width: none;
-  }
+.watchlist-select {
+  min-width: 220px;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+}
+
+.watchlist-input {
+  width: 100%;
+  max-width: 260px;
+}
 
   .watchlist-card {
     grid-template-columns: 1fr;

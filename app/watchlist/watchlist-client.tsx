@@ -108,9 +108,11 @@ export default function WatchlistClient({
   const [watchlist, setWatchlist] = useState<Movie[]>(initialMovies);
   const [newListName, setNewListName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function loadMoviesForWatchlist(watchlistId: string) {
     setIsLoading(true);
+    setErrorMessage("");
 
     const { data, error } = await supabase
       .from("movies")
@@ -120,14 +122,18 @@ export default function WatchlistClient({
       .eq("watchlist_id", watchlistId)
       .order("created_at", { ascending: false });
 
-    if (!error) {
-      setWatchlist(sortMovies((data || []) as Movie[]));
+    if (error) {
+      setErrorMessage(error.message);
+      setIsLoading(false);
+      return;
     }
 
+    setWatchlist(sortMovies((data || []) as Movie[]));
     setIsLoading(false);
   }
 
   async function handleSelectWatchlist(watchlistId: string) {
+    if (!watchlistId) return;
     setSelectedWatchlistId(watchlistId);
     await loadMoviesForWatchlist(watchlistId);
   }
@@ -136,11 +142,17 @@ export default function WatchlistClient({
     const trimmedName = newListName.trim();
     if (!trimmedName) return;
 
+    setErrorMessage("");
+
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
 
-    if (!user) return;
+    if (userError || !user) {
+      setErrorMessage("User konnte nicht geladen werden.");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("watchlists")
@@ -151,29 +163,38 @@ export default function WatchlistClient({
       .select("id, name, user_id, created_at")
       .single();
 
-    if (!error && data) {
-      const createdWatchlist = data as Watchlist;
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
 
+    if (data) {
+      const createdWatchlist = data as Watchlist;
       setWatchlists((prev) => [...prev, createdWatchlist]);
-      setNewListName("");
       setSelectedWatchlistId(createdWatchlist.id);
       setWatchlist([]);
+      setNewListName("");
     }
   }
 
   async function deleteMovie(id: string) {
+    setErrorMessage("");
+
     const { error } = await supabase.from("movies").delete().eq("id", id);
 
-    if (!error) {
-      setWatchlist((prev) =>
-        sortMovies(prev.filter((movie) => movie.id !== id))
-      );
+    if (error) {
+      setErrorMessage(error.message);
+      return;
     }
+
+    setWatchlist((prev) => sortMovies(prev.filter((movie) => movie.id !== id)));
   }
 
   async function toggleWatched(id: string) {
     const movie = watchlist.find((m) => m.id === id);
     if (!movie) return;
+
+    setErrorMessage("");
 
     const newStatus: MovieStatus =
       movie.status === "watched" ? "watchlist" : "watched";
@@ -183,13 +204,14 @@ export default function WatchlistClient({
       .update({ status: newStatus })
       .eq("id", id);
 
-    if (!error) {
-      setWatchlist((prev) =>
-        sortMovies(
-          prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
-        )
-      );
+    if (error) {
+      setErrorMessage(error.message);
+      return;
     }
+
+    setWatchlist((prev) =>
+      sortMovies(prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m)))
+    );
   }
 
   return (
@@ -215,11 +237,15 @@ export default function WatchlistClient({
           onChange={(e) => handleSelectWatchlist(e.target.value)}
           className="watchlist-select"
         >
-          {watchlists.map((list) => (
-            <option key={list.id} value={list.id}>
-              {list.name}
-            </option>
-          ))}
+          {watchlists.length === 0 ? (
+            <option value="">Keine Watchlist vorhanden</option>
+          ) : (
+            watchlists.map((list) => (
+              <option key={list.id} value={list.id}>
+                {list.name}
+              </option>
+            ))
+          )}
         </select>
 
         <input
@@ -233,9 +259,10 @@ export default function WatchlistClient({
         <button onClick={createWatchlist}>Erstellen</button>
       </div>
 
+      {errorMessage ? <p>{errorMessage}</p> : null}
       {isLoading ? <p>Filme werden geladen...</p> : null}
 
-      {!isLoading && watchlist.length === 0 ? (
+      {!isLoading && !errorMessage && watchlist.length === 0 ? (
         <p>Noch keine Filme gespeichert.</p>
       ) : null}
 
