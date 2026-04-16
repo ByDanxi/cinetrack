@@ -1,4 +1,4 @@
-import { createClient } from "../../utils/supabase/server";
+import { createClient } from "../../../utils/supabase/server";
 import WatchlistClient from "./watchlist-client";
 
 type MovieStatus = "watchlist" | "watched";

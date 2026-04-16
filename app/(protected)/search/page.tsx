@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "../../utils/supabase/client";
+import { createClient } from "../../../utils/supabase/client";
 
 const supabase = createClient();
 const API_KEY = process.env.NEXT_PUBLIC_OMDB_API_KEY || "3478142e";
