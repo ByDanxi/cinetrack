@@ -32,6 +32,9 @@ type WatchlistMember = {
   id: string;
   user_id: string;
   role: "owner" | "member";
+  profiles?: {
+    username: string;
+  }[] | null;
 };
 
 type WatchlistClientProps = {
@@ -128,38 +131,45 @@ export default function WatchlistClient({
   const isOwner = selectedWatchlist?.role === "owner";
 
   useEffect(() => {
-  if (!selectedWatchlistId) {
-    setMembers([]);
-    return;
+    if (!selectedWatchlistId) {
+      setMembers([]);
+      return;
+    }
+
+    loadMembers(selectedWatchlistId);
+  }, [selectedWatchlistId]);
+
+  async function loadMembers(watchlistId: string) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setMembers([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("watchlist_members")
+      .select(`
+        id,
+        user_id,
+        role,
+        profiles (
+          username
+        )
+      `)
+      .eq("watchlist_id", watchlistId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setMembers([]);
+      return;
+    }
+
+    setMembers((data || []) as WatchlistMember[]);
   }
-
-  loadMembers(selectedWatchlistId);
-}, [selectedWatchlistId]);
-
- async function loadMembers(watchlistId: string) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    setMembers([]);
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("watchlist_members")
-    .select("id, user_id, role")
-    .eq("watchlist_id", watchlistId)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    setMembers([]);
-    return;
-  }
-
-  setMembers((data || []) as WatchlistMember[]);
-}
 
   async function loadMoviesForWatchlist(watchlistId: string) {
     setIsLoading(true);
@@ -181,7 +191,6 @@ export default function WatchlistClient({
     }
 
     setWatchlist(sortMovies((data || []) as Movie[]));
-    await loadMembers(watchlistId);
     setIsLoading(false);
   }
 
@@ -342,59 +351,60 @@ export default function WatchlistClient({
     );
   }
 
-async function addMember() {
-  const trimmedUsername = shareUserId.trim().toLowerCase();
+  async function addMember() {
+    const trimmedUsername = shareUserId.trim().toLowerCase();
 
-  if (!selectedWatchlistId) return;
+    if (!selectedWatchlistId) return;
 
-  if (!isOwner) {
-    setErrorMessage("Nur der Besitzer kann Mitglieder hinzufügen.");
-    return;
+    if (!isOwner) {
+      setErrorMessage("Nur der Besitzer kann Mitglieder hinzufügen.");
+      return;
+    }
+
+    if (!trimmedUsername) return;
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .eq("username", trimmedUsername)
+      .single();
+
+    if (profileError || !profile) {
+      setErrorMessage("Benutzername nicht gefunden.");
+      return;
+    }
+
+    const alreadyExists = members.some((member) => member.user_id === profile.id);
+    if (alreadyExists) {
+      setErrorMessage("Dieser User ist bereits in der Watchlist.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("watchlist_members")
+      .insert({
+        watchlist_id: selectedWatchlistId,
+        user_id: profile.id,
+        role: "member",
+      })
+      .select("id, user_id, role")
+      .single();
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    if (data) {
+      setMembers((prev) => [...prev, data as WatchlistMember]);
+      setShareUserId("");
+      setSuccessMessage("Mitglied wurde hinzugefügt.");
+    }
   }
 
-  if (!trimmedUsername) return;
-
-  setErrorMessage("");
-  setSuccessMessage("");
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, username")
-    .eq("username", trimmedUsername)
-    .single();
-
-  if (profileError || !profile) {
-    setErrorMessage("Benutzername nicht gefunden.");
-    return;
-  }
-
-  const alreadyExists = members.some((member) => member.user_id === profile.id);
-  if (alreadyExists) {
-    setErrorMessage("Dieser User ist bereits in der Watchlist.");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("watchlist_members")
-    .insert({
-      watchlist_id: selectedWatchlistId,
-      user_id: profile.id,
-      role: "member",
-    })
-    .select("id, user_id, role")
-    .single();
-
-  if (error) {
-    setErrorMessage(error.message);
-    return;
-  }
-
-  if (data) {
-    setMembers((prev) => [...prev, data as WatchlistMember]);
-    setShareUserId("");
-    setSuccessMessage("Mitglied wurde hinzugefügt.");
-  }
-}
   async function removeMember(memberId: string, memberRole: "owner" | "member") {
     if (!selectedWatchlistId) return;
 
@@ -541,7 +551,7 @@ async function addMember() {
                   <div>
                     <strong>{member.role === "owner" ? "Owner" : "Mitglied"}</strong>
                     <p style={{ margin: "6px 0 0", color: "#64748b" }}>
-                      {member.user_id}
+                      {member.profiles?.[0]?.username || member.user_id}
                     </p>
                   </div>
 
