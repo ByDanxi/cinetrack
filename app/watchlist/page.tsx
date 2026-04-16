@@ -164,37 +164,35 @@ export default function WatchlistPage() {
   }
 
   return (
-    <main className="page-shell">
-      <div className="container">
-        <section className="section-card">
-          <div className="section-head">
-            <h1>Watchlist</h1>
-            {!loading && watchlist.length > 0 ? (
-              <span className="section-count">
-                {watchlist.length} Film{watchlist.length !== 1 ? "e" : ""}
-              </span>
-            ) : null}
-          </div>
-
-          {loading ? <p>Lädt...</p> : null}
-
-          {!loading && watchlist.length === 0 ? (
-            <p>Noch keine Filme gespeichert.</p>
+    <div className="page-content">
+      <section className="section-card">
+        <div className="section-head">
+          <h1>Watchlist</h1>
+          {!loading && watchlist.length > 0 ? (
+            <span className="section-count">
+              {watchlist.length} Film{watchlist.length !== 1 ? "e" : ""}
+            </span>
           ) : null}
+        </div>
 
-          <div className="watchlist-list">
-            {watchlist.map((movie) => (
-              <MovieCard
-                key={movie.id}
-                movie={movie}
-                onDelete={deleteMovie}
-                onToggleWatched={toggleWatched}
-                onRate={rateMovie}
-              />
-            ))}
-          </div>
-        </section>
-      </div>
-    </main>
+        {loading ? <p>Lädt...</p> : null}
+
+        {!loading && watchlist.length === 0 ? (
+          <p>Noch keine Filme gespeichert.</p>
+        ) : null}
+
+        <div className="watchlist-list">
+          {watchlist.map((movie) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              onDelete={deleteMovie}
+              onToggleWatched={toggleWatched}
+              onRate={rateMovie}
+            />
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
