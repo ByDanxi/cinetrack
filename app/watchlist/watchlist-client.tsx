@@ -27,6 +27,22 @@ function sortMovies(movies: Movie[]) {
   });
 }
 
+function SkeletonCard() {
+  return (
+    <div className="watchlist-card">
+      <div className="watchlist-poster-wrap">
+        <div className="watchlist-poster skeleton" />
+      </div>
+
+      <div className="watchlist-content">
+        <div className="skeleton skeleton-title" />
+        <div className="skeleton skeleton-line" />
+        <div className="skeleton skeleton-line short" />
+      </div>
+    </div>
+  );
+}
+
 function MovieCard({
   movie,
   onDelete,
@@ -164,17 +180,25 @@ export default function WatchlistClient({
 
       {watchlist.length === 0 ? <p>Noch keine Filme gespeichert.</p> : null}
 
-      <div className="watchlist-list">
-        {watchlist.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            onDelete={deleteMovie}
-            onToggleWatched={toggleWatched}
-            onRate={rateMovie}
-          />
-        ))}
-      </div>
+<div className="watchlist-list">
+  {watchlist.length === 0 ? (
+    <>
+      <SkeletonCard />
+      <SkeletonCard />
+      <SkeletonCard />
+    </>
+  ) : (
+    watchlist.map((movie) => (
+      <MovieCard
+        key={movie.id}
+        movie={movie}
+        onDelete={deleteMovie}
+        onToggleWatched={toggleWatched}
+        onRate={rateMovie}
+      />
+    ))
+  )}
+</div>
     </section>
   );
 }
