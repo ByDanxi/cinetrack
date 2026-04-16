@@ -681,7 +681,7 @@ export default function WatchlistClient({
                   }}
                 >
                   <div>
-                    <strong>{member.role === "owner" ? "Owner" : "Mitglied"}</strong>
+                    <strong>Mitglied</strong>
                     <p style={{ margin: "6px 0 0", color: "#64748b" }}>
                       {member.profiles?.[0]?.username || member.user_id}
                     </p>
