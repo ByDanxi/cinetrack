@@ -498,7 +498,7 @@ async function addMember() {
           <div className="watchlist-toolbar-row">
             <input
               type="text"
-              placeholder="User-ID zum Teilen"
+              placeholder="Benutzername zum Teilen"
               value={shareUserId}
               onChange={(e) => setShareUserId(e.target.value)}
               className="watchlist-input"
