@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "../../utils/supabase/client";
 
 const supabase = createClient();
@@ -126,6 +126,15 @@ export default function WatchlistClient({
   );
 
   const isOwner = selectedWatchlist?.role === "owner";
+
+  useEffect(() => {
+  if (!selectedWatchlistId) {
+    setMembers([]);
+    return;
+  }
+
+  loadMembers(selectedWatchlistId);
+}, [selectedWatchlistId]);
 
  async function loadMembers(watchlistId: string) {
   const {
