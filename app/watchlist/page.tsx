@@ -115,36 +115,4 @@ export default async function WatchlistPage() {
       }
     }
   }
-
-  return (
-    <>
-      <div
-        style={{
-          margin: "16px",
-          padding: "12px 16px",
-          borderRadius: "12px",
-          background: "#fff7ed",
-          border: "1px solid #fdba74",
-          color: "#9a3412",
-          fontSize: "14px",
-          lineHeight: 1.5,
-        }}
-      >
-        <strong>Debug WatchlistPage</strong>
-        <div>User ID: {String(debug.userId)}</div>
-        <div>Memberships Count: {debug.membershipsCount}</div>
-        <div>Membership Error: {debug.membershipError ?? "none"}</div>
-        <div>Watchlists Count: {debug.watchlistsCount}</div>
-        <div>Watchlists Error: {debug.watchlistsError ?? "none"}</div>
-        <div>Selected Watchlist: {debug.selectedWatchlistId ?? "none"}</div>
-        <div>Movies Error: {debug.moviesError ?? "none"}</div>
-      </div>
-
-      <WatchlistClient
-        initialMovies={initialMovies}
-        initialWatchlists={initialWatchlists}
-        initialSelectedWatchlistId={initialSelectedWatchlistId}
-      />
-    </>
-  );
 }
