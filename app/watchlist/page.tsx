@@ -96,6 +96,14 @@ export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
 
+  function sortMovies(movies: Movie[]) {
+    return [...movies].sort((a, b) => {
+      if (a.status === b.status) return 0;
+      if (a.status === "watchlist") return -1;
+      return 1;
+    });
+  }
+
   async function loadMovies() {
     const {
       data: { user },
@@ -113,7 +121,7 @@ export default function WatchlistPage() {
       .order("created_at", { ascending: false });
 
     if (!error) {
-      setWatchlist((data || []) as Movie[]);
+      setWatchlist(sortMovies((data || []) as Movie[]));
     }
 
     setLoading(false);
@@ -127,7 +135,7 @@ export default function WatchlistPage() {
     const { error } = await supabase.from("watchlist").delete().eq("id", id);
 
     if (!error) {
-      setWatchlist((prev) => prev.filter((movie) => movie.id !== id));
+      setWatchlist((prev) => sortMovies(prev.filter((movie) => movie.id !== id)));
     }
   }
 
@@ -145,7 +153,9 @@ export default function WatchlistPage() {
 
     if (!error) {
       setWatchlist((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
+        sortMovies(
+          prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
+        )
       );
     }
   }
