@@ -17,6 +17,7 @@ type Movie = {
   status: MovieStatus;
   imdb_id?: string;
   user_id?: string;
+  watchlist_id: string;
 };
 
 export default function HomePage() {
@@ -45,7 +46,7 @@ export default function HomePage() {
       }
 
       const { data, error } = await supabase
-        .from("watchlist")
+        .from("movies")
         .select("*")
         .eq("user_id", user.id);
 

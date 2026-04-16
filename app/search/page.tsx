@@ -23,6 +23,11 @@ type Movie = {
   imdbRating?: string;
 };
 
+type Watchlist = {
+  id: string;
+  name: string;
+};
+
 function MovieCard({
   movie,
   onAdd,
@@ -175,6 +180,36 @@ export default function SearchPage() {
   const [message, setMessage] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
+  const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
+  const [selectedWatchlistId, setSelectedWatchlistId] = useState("");
+
+  useEffect(() => {
+    async function loadWatchlists() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("watchlists")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (!error && data) {
+        const loadedWatchlists = data as Watchlist[];
+        setWatchlists(loadedWatchlists);
+
+        if (loadedWatchlists.length > 0) {
+          setSelectedWatchlistId(loadedWatchlists[0].id);
+        }
+      }
+    }
+
+    loadWatchlists();
+  }, []);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedQuery(query);
@@ -293,27 +328,34 @@ export default function SearchPage() {
       return;
     }
 
+    if (!selectedWatchlistId) {
+      setMessage("Bitte zuerst eine Watchlist auswählen oder erstellen.");
+      return;
+    }
+
     const { data: existing } = await supabase
-      .from("watchlist")
+      .from("movies")
       .select("id")
       .eq("user_id", user.id)
+      .eq("watchlist_id", selectedWatchlistId)
       .eq("imdb_id", movie.imdb_id)
       .maybeSingle();
 
     if (existing) {
-      setMessage("Film ist bereits in deiner Watchlist.");
+      setMessage("Film ist bereits in dieser Watchlist.");
       return;
     }
 
-    const { error } = await supabase.from("watchlist").insert({
+    const { error } = await supabase.from("movies").insert({
       user_id: user.id,
+      watchlist_id: selectedWatchlistId,
       imdb_id: movie.imdb_id ?? null,
       title: movie.title,
       year: movie.year,
       poster: movie.poster,
       plot: movie.plot,
       rating: movie.rating ?? null,
-      status: movie.status,
+      status: "watchlist",
     });
 
     setMessage(error ? "Film konnte nicht gespeichert werden." : "Film hinzugefügt.");
@@ -342,6 +384,7 @@ export default function SearchPage() {
             gap: 10,
             marginBottom: 20,
             alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
           <input
@@ -350,13 +393,45 @@ export default function SearchPage() {
             placeholder="Film suchen..."
             style={{
               flex: 1,
+              minWidth: "240px",
               padding: "14px",
               borderRadius: "14px",
               border: "1px solid #d1d5db",
               fontSize: "16px",
             }}
           />
-        </div>
+
+        <label htmlFor="search-watchlist-select" className="sr-only">
+          Watchlist auswählen
+        </label>
+
+        <select
+          id="search-watchlist-select"
+          aria-label="Watchlist auswählen"
+          value={selectedWatchlistId}
+          onChange={(e) => setSelectedWatchlistId(e.target.value)}
+          style={{
+            minWidth: "220px",
+            height: "52px",
+            borderRadius: "14px",
+            border: "1px solid #d1d5db",
+            padding: "0 14px",
+            fontSize: "16px",
+            background: "#fff",
+            color: "#111827",
+          }}
+        >
+          {watchlists.length === 0 ? (
+            <option value="">Keine Watchlist vorhanden</option>
+          ) : (
+            watchlists.map((watchlist) => (
+              <option key={watchlist.id} value={watchlist.id}>
+                {watchlist.name}
+              </option>
+            ))
+          )}
+        </select>
+                </div>
 
         {loadingSearch ? <p>Suche läuft...</p> : null}
         {!loadingSearch && message ? <p>{message}</p> : null}
