@@ -35,7 +35,7 @@ export default async function WatchlistPage() {
   if (user) {
     const { data, error } = await supabase
       .from("watchlist")
-      .select("*")
+      .select("id, title, year, poster, plot, rating, status, imdb_id, user_id")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
