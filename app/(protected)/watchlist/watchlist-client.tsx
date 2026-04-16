@@ -37,99 +37,21 @@ type WatchlistMember = {
   }[] | null;
 };
 
-type UserSuggestion = {
-  id: string;
-  username: string;
-};
-
-type WatchlistClientProps = {
-  initialMovies: Movie[];
-  initialWatchlists: Watchlist[];
-  initialSelectedWatchlistId: string | null;
-};
-
-function sortMovies(movies: Movie[]) {
-  return [...movies].sort((a, b) => {
-    if (a.status === b.status) return 0;
-    if (a.status === "watchlist") return -1;
-    return 1;
-  });
-}
-
-function MovieCard({
-  movie,
-  onDelete,
-  onToggleWatched,
-}: {
-  movie: Movie;
-  onDelete: (id: string) => void;
-  onToggleWatched: (id: string) => void;
-}) {
-  return (
-    <article className="watchlist-card">
-      <div className="watchlist-poster-wrap">
-        {movie.poster ? (
-          <img
-            src={movie.poster}
-            alt={movie.title}
-            className="watchlist-poster"
-          />
-        ) : (
-          <div className="watchlist-poster-fallback">Kein Poster</div>
-        )}
-      </div>
-
-      <div className="watchlist-content">
-        <div className="watchlist-top">
-          <div>
-            <h3 className="watchlist-title">{movie.title}</h3>
-            <p className="watchlist-year">{movie.year}</p>
-          </div>
-
-          <span
-            className={`status-badge ${
-              movie.status === "watched"
-                ? "status-badge-watched"
-                : "status-badge-watchlist"
-            }`}
-          >
-            {movie.status === "watched" ? "Gesehen" : "Watchlist"}
-          </span>
-        </div>
-
-        <div className="watchlist-actions">
-          <button onClick={() => onToggleWatched(movie.id)}>
-            {movie.status === "watched" ? "Zur Watchlist" : "Als gesehen"}
-          </button>
-
-          <button className="danger-btn" onClick={() => onDelete(movie.id)}>
-            Löschen
-          </button>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 export default function WatchlistClient({
   initialMovies,
   initialWatchlists,
   initialSelectedWatchlistId,
-}: WatchlistClientProps) {
+}: {
+  initialMovies: Movie[];
+  initialWatchlists: Watchlist[];
+  initialSelectedWatchlistId: string | null;
+}) {
   const [watchlists, setWatchlists] = useState<Watchlist[]>(initialWatchlists);
   const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(
     initialSelectedWatchlistId
   );
   const [watchlist, setWatchlist] = useState<Movie[]>(initialMovies);
   const [members, setMembers] = useState<WatchlistMember[]>([]);
-  const [newListName, setNewListName] = useState("");
-  const [shareUserId, setShareUserId] = useState("");
-  const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
 
   const selectedWatchlist = useMemo(
     () => watchlists.find((list) => list.id === selectedWatchlistId) || null,
@@ -139,588 +61,81 @@ export default function WatchlistClient({
   const isOwner = selectedWatchlist?.role === "owner";
 
   useEffect(() => {
-    if (!selectedWatchlistId) {
-      setMembers([]);
-      return;
-    }
-
+    if (!selectedWatchlistId) return;
     loadMembers(selectedWatchlistId);
   }, [selectedWatchlistId]);
 
-  useEffect(() => {
-    if (!selectedWatchlistId || !isOwner) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const trimmed = shareUserId.trim().toLowerCase();
-
-    if (trimmed.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      searchUsers(trimmed);
-    }, 400);
-
-    return () => clearTimeout(timeout);
-  }, [shareUserId, selectedWatchlistId, isOwner, members]);
-
   async function loadMembers(watchlistId: string) {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("watchlist_members")
-      .select(`
+      .select(
+        `
         id,
         user_id,
         role,
         profiles (
           username
         )
-      `)
-      .eq("watchlist_id", watchlistId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      setMembers([]);
-      setErrorMessage(error.message);
-      return;
-    }
+      `
+      )
+      .eq("watchlist_id", watchlistId);
 
     setMembers((data || []) as WatchlistMember[]);
   }
 
-  async function searchUsers(query: string) {
-    setIsSearchingUsers(true);
-
-    const memberIds = members.map((member) => member.user_id);
-
-    let request = supabase
-      .from("profiles")
-      .select("id, username")
-      .ilike("username", `%${query}%`)
-      .order("username", { ascending: true })
-      .limit(6);
-
-    if (memberIds.length > 0) {
-      request = request.not("id", "in", `(${memberIds.join(",")})`);
-    }
-
-    const { data, error } = await request;
-
-    if (error) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setIsSearchingUsers(false);
-      return;
-    }
-
-    setSuggestions((data || []) as UserSuggestion[]);
-    setShowSuggestions(true);
-    setIsSearchingUsers(false);
-  }
-
-  async function loadMoviesForWatchlist(watchlistId: string) {
-    setIsLoading(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const { data, error } = await supabase
-      .from("movies")
-      .select(
-        "id, title, year, poster, plot, rating, status, imdb_id, user_id, watchlist_id"
-      )
-      .eq("watchlist_id", watchlistId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      setErrorMessage(error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    setWatchlist(sortMovies((data || []) as Movie[]));
-    setIsLoading(false);
-  }
-
-  async function handleSelectWatchlist(watchlistId: string) {
-    if (!watchlistId) return;
-    setSelectedWatchlistId(watchlistId);
-    setShareUserId("");
-    setSuggestions([]);
-    setShowSuggestions(false);
-    await loadMoviesForWatchlist(watchlistId);
-  }
-
-  async function createWatchlist() {
-    const trimmedName = newListName.trim();
-    if (!trimmedName) return;
-
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      setErrorMessage("User konnte nicht geladen werden.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("watchlists")
-      .insert({
-        name: trimmedName,
-        user_id: user.id,
-      })
-      .select("id, name, user_id, created_at")
-      .single();
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    if (data) {
-      const createdWatchlist: Watchlist = {
-        ...(data as Omit<Watchlist, "role">),
-        role: "owner",
-      };
-
-      setWatchlists((prev) => [...prev, createdWatchlist]);
-      setSelectedWatchlistId(createdWatchlist.id);
-      setWatchlist([]);
-      setNewListName("");
-      await loadMembers(createdWatchlist.id);
-      setSuccessMessage("Watchlist wurde erstellt.");
-    }
-  }
-
-  async function deleteSelectedWatchlist() {
-    if (!selectedWatchlistId || !selectedWatchlist) return;
-
-    if (!isOwner) {
-      setErrorMessage("Nur der Besitzer kann diese Watchlist löschen.");
-      return;
-    }
-
-    if (watchlists.filter((w) => w.role === "owner").length <= 1) {
-      setErrorMessage("Mindestens eine eigene Watchlist muss bestehen bleiben.");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "Willst du diese Watchlist wirklich löschen? Alle Filme in dieser Liste werden ebenfalls gelöscht."
-    );
-
-    if (!confirmed) return;
-
-    setErrorMessage("");
-    setSuccessMessage("");
-    setIsLoading(true);
-
-    const currentIndex = watchlists.findIndex((w) => w.id === selectedWatchlistId);
-    const fallbackWatchlist =
-      watchlists.find((w) => w.id !== selectedWatchlistId) || null;
-
-    const { error } = await supabase
-      .from("watchlists")
-      .delete()
-      .eq("id", selectedWatchlistId);
-
-    if (error) {
-      setErrorMessage(error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    const updatedWatchlists = watchlists.filter(
-      (w) => w.id !== selectedWatchlistId
-    );
-
-    setWatchlists(updatedWatchlists);
-
-    const nextWatchlist =
-      updatedWatchlists[currentIndex] ||
-      updatedWatchlists[currentIndex - 1] ||
-      fallbackWatchlist;
-
-    if (nextWatchlist) {
-      setSelectedWatchlistId(nextWatchlist.id);
-      await loadMoviesForWatchlist(nextWatchlist.id);
-    } else {
-      setSelectedWatchlistId(null);
-      setWatchlist([]);
-      setMembers([]);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(false);
-  }
-
-  async function deleteMovie(id: string) {
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const { error } = await supabase.from("movies").delete().eq("id", id);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    setWatchlist((prev) => sortMovies(prev.filter((movie) => movie.id !== id)));
-  }
-
-  async function toggleWatched(id: string) {
-    const movie = watchlist.find((m) => m.id === id);
-    if (!movie) return;
-
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const newStatus: MovieStatus =
-      movie.status === "watched" ? "watchlist" : "watched";
-
-    const { error } = await supabase
-      .from("movies")
-      .update({ status: newStatus })
-      .eq("id", id);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    setWatchlist((prev) =>
-      sortMovies(prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m)))
-    );
-  }
-
-  async function addMember() {
-    const trimmedUsername = shareUserId.trim().toLowerCase();
-
-    if (!selectedWatchlistId) {
-      setErrorMessage("Keine Watchlist ausgewählt.");
-      return;
-    }
-
-    if (!isOwner) {
-      setErrorMessage("Nur der Besitzer kann Mitglieder hinzufügen.");
-      return;
-    }
-
-    if (!trimmedUsername) {
-      setErrorMessage("Bitte einen Benutzernamen eingeben.");
-      return;
-    }
-
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, username")
-      .eq("username", trimmedUsername)
-      .single();
-
-    if (profileError || !profile) {
-      setErrorMessage("Benutzername nicht gefunden.");
-      return;
-    }
-
-    const alreadyExists = members.some((member) => member.user_id === profile.id);
-
-    if (alreadyExists) {
-      setErrorMessage("Dieser User ist bereits in der Watchlist.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("watchlist_members")
-      .insert({
-        watchlist_id: selectedWatchlistId,
-        user_id: profile.id,
-        role: "member",
-      });
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    await loadMembers(selectedWatchlistId);
-    setShareUserId("");
-    setSuggestions([]);
-    setShowSuggestions(false);
-    setSuccessMessage("Mitglied wurde hinzugefügt.");
-  }
-
-  async function removeMember(memberId: string, memberRole: "owner" | "member") {
-    if (!selectedWatchlistId) return;
-
-    if (!isOwner) {
-      setErrorMessage("Nur der Besitzer kann Mitglieder entfernen.");
-      return;
-    }
-
-    if (memberRole === "owner") {
-      setErrorMessage("Der Besitzer kann nicht entfernt werden.");
-      return;
-    }
-
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const { error } = await supabase
-      .from("watchlist_members")
-      .delete()
-      .eq("id", memberId);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    await loadMembers(selectedWatchlistId);
-    setSuccessMessage("Mitglied wurde entfernt.");
-  }
-
-  function selectSuggestion(username: string) {
-    setShareUserId(username);
-    setShowSuggestions(false);
-  }
-
   return (
     <section className="section-card">
-      <div className="section-head">
-        <div>
-          <h1>Watchlist</h1>
-          {selectedWatchlist ? (
-            <p style={{ margin: "8px 0 0", color: "#64748b" }}>
-              {selectedWatchlist.name} ·{" "}
-              {selectedWatchlist.role === "owner" ? "Eigene Liste" : "Geteilte Liste"}
-            </p>
-          ) : null}
-        </div>
+      <h1>Watchlist</h1>
 
-        {selectedWatchlistId && watchlist.length > 0 ? (
-          <span className="section-count">
-            {watchlist.length} Film{watchlist.length !== 1 ? "e" : ""}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="watchlist-toolbar">
-        <div className="watchlist-toolbar-row">
-          <label htmlFor="watchlist-select" className="sr-only">
-            Watchlist auswählen
-          </label>
-
-          <select
-            id="watchlist-select"
-            aria-label="Watchlist auswählen"
-            value={selectedWatchlistId ?? ""}
-            onChange={(e) => handleSelectWatchlist(e.target.value)}
-            className="watchlist-select"
-          >
-            {watchlists.length === 0 ? (
-              <option value="">Keine Watchlist vorhanden</option>
-            ) : (
-              watchlists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name} {list.role === "member" ? "• geteilt" : ""}
-                </option>
-              ))
-            )}
-          </select>
-
-          {isOwner ? (
-            <button
-              type="button"
-              className="danger-btn"
-              onClick={deleteSelectedWatchlist}
-            >
-              Watchlist löschen
-            </button>
-          ) : null}
-        </div>
-
-        <div className="watchlist-toolbar-row">
-          <input
-            type="text"
-            placeholder="Neue Watchlist"
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-            className="watchlist-input"
-          />
-
-          <button type="button" onClick={createWatchlist}>
-            Erstellen
-          </button>
-        </div>
-
-        {selectedWatchlistId && isOwner ? (
-          <div
-            className="watchlist-toolbar-row"
-            style={{ position: "relative", alignItems: "flex-start" }}
-          >
-            <div style={{ position: "relative", width: "100%", maxWidth: "260px" }}>
-              <input
-                type="text"
-                placeholder="Benutzername eingeben"
-                value={shareUserId}
-                onChange={(e) => {
-                  setShareUserId(e.target.value);
-                  setShowSuggestions(true);
-                }}
-                onFocus={() => {
-                  if (suggestions.length > 0) setShowSuggestions(true);
-                }}
-                className="watchlist-input"
-                autoComplete="off"
-              />
-
-              {showSuggestions && (shareUserId.trim().length >= 2 || isSearchingUsers) ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 8px)",
-                    left: 0,
-                    right: 0,
-                    background: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "14px",
-                    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
-                    zIndex: 20,
-                    overflow: "hidden",
-                  }}
-                >
-                  {isSearchingUsers ? (
-                    <div
-                      style={{
-                        padding: "12px 14px",
-                        color: "#64748b",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Suche...
-                    </div>
-                  ) : suggestions.length > 0 ? (
-                    suggestions.map((user) => (
-                      <button
-                        key={user.id}
-                        type="button"
-                        onClick={() => selectSuggestion(user.username)}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "12px 14px",
-                          border: "none",
-                          background: "#fff",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                        }}
-                      >
-                        @{user.username}
-                      </button>
-                    ))
-                  ) : (
-                    <div
-                      style={{
-                        padding: "12px 14px",
-                        color: "#64748b",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Keine passenden Benutzer gefunden.
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-
-            <button type="button" onClick={addMember}>
-              Mitglied hinzufügen
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      {selectedWatchlistId ? (
+      {/* Mitglieder */}
+      {selectedWatchlistId && (
         <div style={{ marginBottom: "18px" }}>
           <h2 style={{ marginBottom: "12px" }}>Mitglieder</h2>
-          {members.length === 0 ? (
-            <p>Noch keine Mitglieder geladen.</p>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gap: "10px",
-              }}
-            >
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "12px 14px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "14px",
-                    background: "#f8fafc",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <strong>{member.role === "owner" ? "Owner" : "Mitglied"}</strong>
-                    <p style={{ margin: "6px 0 0", color: "#64748b" }}>
-                      {member.profiles?.[0]?.username || member.user_id}
-                    </p>
-                  </div>
 
-                  {isOwner && member.role !== "owner" ? (
-                    <button
-                      type="button"
-                      className="danger-btn"
-                      onClick={() => removeMember(member.id, member.role)}
-                    >
-                      Entfernen
-                    </button>
-                  ) : null}
-                </div>
-              ))}
+          {members.filter((m) => m.role !== "owner").length === 0 ? (
+            <p>Keine Mitglieder vorhanden.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "10px" }}>
+              {members
+                .filter((member) => member.role !== "owner")
+                .map((member) => (
+                  <div
+                    key={member.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "12px",
+                      border: "1px solid #ddd",
+                      borderRadius: "12px",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <div>
+                      <strong>Mitglied</strong>
+                      <p style={{ margin: 0 }}>
+                        {member.profiles?.[0]?.username || member.user_id}
+                      </p>
+                    </div>
+
+                    {isOwner && (
+                      <button
+                        onClick={() =>
+                          supabase
+                            .from("watchlist_members")
+                            .delete()
+                            .eq("id", member.id)
+                        }
+                      >
+                        Entfernen
+                      </button>
+                    )}
+                  </div>
+                ))}
             </div>
           )}
         </div>
-      ) : null}
-
-      {errorMessage ? <p>{errorMessage}</p> : null}
-      {successMessage ? <p>{successMessage}</p> : null}
-      {isLoading ? <p>Filme werden geladen...</p> : null}
-
-      {!isLoading && !errorMessage && watchlist.length === 0 ? (
-        <p>Noch keine Filme gespeichert.</p>
-      ) : null}
-
-      <div className="watchlist-list">
-        {watchlist.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            onDelete={deleteMovie}
-            onToggleWatched={toggleWatched}
-          />
-        ))}
-      </div>
+      )}
     </section>
   );
 }
