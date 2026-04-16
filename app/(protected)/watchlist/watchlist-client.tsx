@@ -176,7 +176,7 @@ export default function WatchlistClient({
         id,
         user_id,
         role,
-        profiles (
+        profiles:profiles!watchlist_members_user_id_fkey (
           username
         )
       `)
