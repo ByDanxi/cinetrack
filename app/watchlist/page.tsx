@@ -31,93 +31,64 @@ function MovieCard({
   onRate: (id: string, rating: number) => void;
 }) {
   return (
-    <div
-      style={{
-        background: "#f8fafc",
-        border: "1px solid #e5e7eb",
-        borderRadius: "20px",
-        overflow: "hidden",
-        display: "grid",
-        gridTemplateColumns: "220px 1fr",
-        gap: "18px",
-      }}
-    >
-      {movie.poster ? (
-        <img
-          src={movie.poster}
-          alt={movie.title}
-          style={{
-            width: "220px",
-            height: "330px",
-            objectFit: "cover",
-            background: "#e5e7eb",
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: "220px",
-            height: "330px",
-            background: "#e5e7eb",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#64748b",
-          }}
-        >
-          Kein Poster
-        </div>
-      )}
-
-      <div
-        style={{
-          padding: "18px 18px 18px 0",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <h3 style={{ marginTop: 0, marginBottom: 10, fontSize: "28px" }}>
-          {movie.title}
-        </h3>
-
-        <p style={{ color: "#64748b", marginTop: 0, marginBottom: 12 }}>
-          {movie.year}
-        </p>
-
-        <p style={{ marginBottom: 14 }}>
-          Status:{" "}
-          <strong>{movie.status === "watched" ? "Gesehen" : "Watchlist"}</strong>
-        </p>
-
-        {movie.rating != null ? (
-          <p style={{ marginBottom: 14 }}>Bewertung: {movie.rating}/10</p>
+    <article className="watchlist-card">
+      <div className="watchlist-poster-wrap">
+        {movie.poster ? (
+          <img
+            src={movie.poster}
+            alt={movie.title}
+            className="watchlist-poster"
+          />
         ) : (
-          <p style={{ marginBottom: 14 }}>Bewertung: —</p>
+          <div className="watchlist-poster-fallback">Kein Poster</div>
         )}
+      </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            flexWrap: "wrap",
-            marginBottom: 14,
-          }}
-        >
+      <div className="watchlist-content">
+        <div className="watchlist-top">
+          <div>
+            <h3 className="watchlist-title">{movie.title}</h3>
+            <p className="watchlist-year">{movie.year}</p>
+          </div>
+
+          <span
+            className={`status-badge ${
+              movie.status === "watched"
+                ? "status-badge-watched"
+                : "status-badge-watchlist"
+            }`}
+          >
+            {movie.status === "watched" ? "Gesehen" : "Watchlist"}
+          </span>
+        </div>
+
+        <p className="watchlist-year" style={{ marginBottom: 16 }}>
+          Bewertung: {movie.rating != null ? `${movie.rating}/10` : "—"}
+        </p>
+
+        <div className="watchlist-actions">
           <button onClick={() => onToggleWatched(movie.id)}>
             {movie.status === "watched" ? "Zur Watchlist" : "Als gesehen"}
           </button>
-          <button onClick={() => onDelete(movie.id)}>Löschen</button>
+
+          <button className="danger-btn" onClick={() => onDelete(movie.id)}>
+            Löschen
+          </button>
         </div>
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className="rating-row">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-            <button key={n} onClick={() => onRate(movie.id, n)}>
+            <button
+              key={n}
+              className={`rating-pill ${movie.rating === n ? "active" : ""}`}
+              onClick={() => onRate(movie.id, n)}
+            >
               {n}
             </button>
           ))}
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -193,39 +164,37 @@ export default function WatchlistPage() {
   }
 
   return (
-    <main
-      style={{
-        background: "#f3f4f6",
-        minHeight: "100vh",
-        padding: "16px",
-      }}
-    >
-      <section
-        style={{
-          background: "white",
-          borderRadius: "20px",
-          padding: "20px",
-        }}
-      >
-        <h1 style={{ marginTop: 0 }}>Watchlist</h1>
+    <main className="page-shell">
+      <div className="container">
+        <section className="section-card">
+          <div className="section-head">
+            <h1>Watchlist</h1>
+            {!loading && watchlist.length > 0 ? (
+              <span className="section-count">
+                {watchlist.length} Film{watchlist.length !== 1 ? "e" : ""}
+              </span>
+            ) : null}
+          </div>
 
-        {loading ? <p>Lädt...</p> : null}
-        {!loading && watchlist.length === 0 ? (
-          <p>Noch keine Filme gespeichert.</p>
-        ) : null}
+          {loading ? <p>Lädt...</p> : null}
 
-        <div style={{ display: "grid", gap: 16 }}>
-          {watchlist.map((movie) => (
-            <MovieCard
-              key={movie.id}
-              movie={movie}
-              onDelete={deleteMovie}
-              onToggleWatched={toggleWatched}
-              onRate={rateMovie}
-            />
-          ))}
-        </div>
-      </section>
+          {!loading && watchlist.length === 0 ? (
+            <p>Noch keine Filme gespeichert.</p>
+          ) : null}
+
+          <div className="watchlist-list">
+            {watchlist.map((movie) => (
+              <MovieCard
+                key={movie.id}
+                movie={movie}
+                onDelete={deleteMovie}
+                onToggleWatched={toggleWatched}
+                onRate={rateMovie}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
