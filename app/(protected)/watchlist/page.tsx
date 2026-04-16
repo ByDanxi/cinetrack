@@ -44,22 +44,37 @@ export default async function WatchlistPage() {
   let initialSelectedWatchlistId: string | null = null;
 
   if (user) {
+    const { data: ownWatchlistsData } = await supabase
+      .from("watchlists")
+      .select("id, name, user_id, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+
+    const ownWatchlists: Watchlist[] = (ownWatchlistsData || []).map((watchlist) => ({
+      ...(watchlist as Omit<Watchlist, "role">),
+      role: "owner",
+    }));
+
     const { data: membershipData } = await supabase
       .from("watchlist_members")
       .select("watchlist_id, role")
       .eq("user_id", user.id);
 
+    let sharedWatchlists: Watchlist[] = [];
+
     if (membershipData && membershipData.length > 0) {
-      const watchlistIds = membershipData.map((item) => item.watchlist_id);
+      const sharedIds = membershipData
+        .filter((item) => !ownWatchlists.some((w) => w.id === item.watchlist_id))
+        .map((item) => item.watchlist_id);
 
-      const { data: watchlistsData } = await supabase
-        .from("watchlists")
-        .select("id, name, user_id, created_at")
-        .in("id", watchlistIds)
-        .order("created_at", { ascending: true });
+      if (sharedIds.length > 0) {
+        const { data: sharedWatchlistsData } = await supabase
+          .from("watchlists")
+          .select("id, name, user_id, created_at")
+          .in("id", sharedIds)
+          .order("created_at", { ascending: true });
 
-      if (watchlistsData) {
-        initialWatchlists = watchlistsData.map((watchlist) => {
+        sharedWatchlists = (sharedWatchlistsData || []).map((watchlist) => {
           const membership = membershipData.find(
             (item) => item.watchlist_id === watchlist.id
           );
@@ -69,22 +84,24 @@ export default async function WatchlistPage() {
             role: (membership?.role as "owner" | "member") || "member",
           };
         });
+      }
+    }
 
-        if (initialWatchlists.length > 0) {
-          initialSelectedWatchlistId = initialWatchlists[0].id;
+    initialWatchlists = [...ownWatchlists, ...sharedWatchlists];
 
-          const { data: moviesData } = await supabase
-            .from("movies")
-            .select(
-              "id, title, year, poster, plot, rating, status, imdb_id, user_id, watchlist_id"
-            )
-            .eq("watchlist_id", initialSelectedWatchlistId)
-            .order("created_at", { ascending: false });
+    if (initialWatchlists.length > 0) {
+      initialSelectedWatchlistId = initialWatchlists[0].id;
 
-          if (moviesData) {
-            initialMovies = sortMovies((moviesData || []) as Movie[]);
-          }
-        }
+      const { data: moviesData } = await supabase
+        .from("movies")
+        .select(
+          "id, title, year, poster, plot, rating, status, imdb_id, user_id, watchlist_id"
+        )
+        .eq("watchlist_id", initialSelectedWatchlistId)
+        .order("created_at", { ascending: false });
+
+      if (moviesData) {
+        initialMovies = sortMovies((moviesData || []) as Movie[]);
       }
     }
   }
