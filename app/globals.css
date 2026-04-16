@@ -472,12 +472,14 @@ min-height: 420px;
     gap: 18px;
   }
 
-  .watchlist-poster-wrap,
-  .watchlist-poster,
-  .watchlist-poster-fallback {
-    width: 140px;
-    height: 210px;
-  }
+.watchlist-poster-wrap,
+.watchlist-poster,
+.watchlist-poster-fallback {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  max-height: none;
+}
 
   .watchlist-title {
     font-size: 24px;
