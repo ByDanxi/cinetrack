@@ -27,32 +27,14 @@ function sortMovies(movies: Movie[]) {
   });
 }
 
-function SkeletonCard() {
-  return (
-    <div className="watchlist-card">
-      <div className="watchlist-poster-wrap">
-        <div className="watchlist-poster skeleton" />
-      </div>
-
-      <div className="watchlist-content">
-        <div className="skeleton skeleton-title" />
-        <div className="skeleton skeleton-line" />
-        <div className="skeleton skeleton-line short" />
-      </div>
-    </div>
-  );
-}
-
 function MovieCard({
   movie,
   onDelete,
   onToggleWatched,
-  onRate,
 }: {
   movie: Movie;
   onDelete: (id: string) => void;
   onToggleWatched: (id: string) => void;
-  onRate: (id: string, rating: number) => void;
 }) {
   return (
     <article className="watchlist-card">
@@ -86,10 +68,6 @@ function MovieCard({
           </span>
         </div>
 
-        <p className="watchlist-year" style={{ marginBottom: 16 }}>
-          Bewertung: {movie.rating != null ? `${movie.rating}/10` : "—"}
-        </p>
-
         <div className="watchlist-actions">
           <button onClick={() => onToggleWatched(movie.id)}>
             {movie.status === "watched" ? "Zur Watchlist" : "Als gesehen"}
@@ -98,18 +76,6 @@ function MovieCard({
           <button className="danger-btn" onClick={() => onDelete(movie.id)}>
             Löschen
           </button>
-        </div>
-
-        <div className="rating-row">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-            <button
-              key={n}
-              className={`rating-pill ${movie.rating === n ? "active" : ""}`}
-              onClick={() => onRate(movie.id, n)}
-            >
-              {n}
-            </button>
-          ))}
         </div>
       </div>
     </article>
@@ -154,19 +120,6 @@ export default function WatchlistClient({
     }
   }
 
-  async function rateMovie(id: string, rating: number) {
-    const { error } = await supabase
-      .from("watchlist")
-      .update({ rating })
-      .eq("id", id);
-
-    if (!error) {
-      setWatchlist((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, rating } : m))
-      );
-    }
-  }
-
   return (
     <section className="section-card">
       <div className="section-head">
@@ -180,25 +133,16 @@ export default function WatchlistClient({
 
       {watchlist.length === 0 ? <p>Noch keine Filme gespeichert.</p> : null}
 
-<div className="watchlist-list">
-  {watchlist.length === 0 ? (
-    <>
-      <SkeletonCard />
-      <SkeletonCard />
-      <SkeletonCard />
-    </>
-  ) : (
-    watchlist.map((movie) => (
-      <MovieCard
-        key={movie.id}
-        movie={movie}
-        onDelete={deleteMovie}
-        onToggleWatched={toggleWatched}
-        onRate={rateMovie}
-      />
-    ))
-  )}
-</div>
+      <div className="watchlist-list">
+        {watchlist.map((movie) => (
+          <MovieCard
+            key={movie.id}
+            movie={movie}
+            onDelete={deleteMovie}
+            onToggleWatched={toggleWatched}
+          />
+        ))}
+      </div>
     </section>
   );
 }
