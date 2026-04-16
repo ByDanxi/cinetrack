@@ -508,7 +508,7 @@ export default function WatchlistClient({
           <div className="watchlist-toolbar-row">
             <input
               type="text"
-              placeholder="Benutzername zum Teilen"
+              placeholder="Benutzername eingeben"
               value={shareUserId}
               onChange={(e) => setShareUserId(e.target.value)}
               className="watchlist-input"
